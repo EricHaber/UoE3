@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Top-Down Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #f0f0f0;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // Set up the canvas and game context
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 800;
+    canvas.height = 600;
+    document.body.appendChild(canvas);
+
+    // Game state
+    const gameState = {
+      player: {
+        x: 400,
+        y: 300,
+        width: 20,
+        height: 20,
+        color: 'blue',
+        speed: 4
+      },
+      storyState: 'beginning',
+      aiDecisions: []
+    };
+
+    // Key handling
+    const keys = {};
+    document.addEventListener('keydown', (e) => (keys[e.key] = true));
+    document.addEventListener('keyup', (e) => (keys[e.key] = false));
+
+    // Story progression AI
+    function updateStory() {
+      switch (gameState.storyState) {
+        case 'beginning':
+          gameState.storyState = 'exploration';
+          gameState.aiDecisions.push('Player started exploring.');
+          break;
+        case 'exploration':
+          if (gameState.player.x > 600) {
+            gameState.storyState = 'challenge';
+            gameState.aiDecisions.push('Player triggered a challenge in the east.');
+          } else if (gameState.player.x < 200) {
+            gameState.storyState = 'ally';
+            gameState.aiDecisions.push('Player met an ally in the west.');
+          }
+          break;
+        case 'challenge':
+          if (gameState.player.y < 100) {
+            gameState.storyState = 'victory';
+            gameState.aiDecisions.push('Player overcame the challenge and won.');
+          }
+          break;
+        case 'ally':
+          if (gameState.player.y > 500) {
+            gameState.storyState = 'teamwork';
+            gameState.aiDecisions.push('Player and ally worked together.');
+          }
+          break;
+        case 'victory':
+          console.log('The story ends with victory.');
+          break;
+        case 'teamwork':
+          console.log('The story ends with teamwork.');
+          break;
+      }
+    }
+
+    // Game update
+    function update() {
+      const player = gameState.player;
+
+      // Player movement
+      if (keys['ArrowUp']) player.y -= player.speed;
+      if (keys['ArrowDown']) player.y += player.speed;
+      if (keys['ArrowLeft']) player.x -= player.speed;
+      if (keys['ArrowRight']) player.x += player.speed;
+
+      // Clamp player to canvas bounds
+      player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
+      player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
+
+      // Update story
+      updateStory();
+    }
+
+    // Game rendering
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw player
+      const player = gameState.player;
+      ctx.fillStyle = player.color;
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+
+      // Draw story state
+      ctx.fillStyle = 'black';
+      ctx.font = '20px Arial';
+      ctx.fillText(`Story State: ${gameState.storyState}`, 10, 20);
+      ctx.fillText(`AI Decisions: ${gameState.aiDecisions.join(' | ')}`, 10, 50);
+    }
+
+    // Main game loop
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>
