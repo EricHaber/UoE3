@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Top-Down Game</title>
+  <title>Infinite Biome Game</title>
   <style>
     body {
       margin: 0;
@@ -25,6 +25,12 @@
     canvas.height = 600;
     document.body.appendChild(canvas);
 
+    // OpenAI API (mock function for now)
+    async function fetchStoryPrompt(input) {
+      // Simulate a response from OpenAI API
+      return `Based on input '${input}', adapt the story: The land grows mysterious.`;
+    }
+
     // Game state
     const gameState = {
       player: {
@@ -35,6 +41,8 @@
         color: 'blue',
         speed: 4
       },
+      mapOffset: { x: 0, y: 0 },
+      biomes: {},
       storyState: 'beginning',
       aiDecisions: []
     };
@@ -44,39 +52,40 @@
     document.addEventListener('keydown', (e) => (keys[e.key] = true));
     document.addEventListener('keyup', (e) => (keys[e.key] = false));
 
+    // Generate biomes
+    function generateBiome(x, y) {
+      const seed = Math.abs((x * 1234 + y * 5678) % 100);
+      if (seed < 33) return 'forest';
+      if (seed < 66) return 'desert';
+      return 'snow';
+    }
+
+    function getBiomeColor(biome) {
+      return {
+        forest: 'green',
+        desert: 'goldenrod',
+        snow: 'white',
+      }[biome] || 'gray';
+    }
+
     // Story progression AI
-    function updateStory() {
+    async function updateStory() {
       switch (gameState.storyState) {
         case 'beginning':
           gameState.storyState = 'exploration';
-          gameState.aiDecisions.push('Player started exploring.');
+          const response = await fetchStoryPrompt('beginning');
+          gameState.aiDecisions.push(response);
           break;
         case 'exploration':
           if (gameState.player.x > 600) {
             gameState.storyState = 'challenge';
-            gameState.aiDecisions.push('Player triggered a challenge in the east.');
+            const response = await fetchStoryPrompt('challenge in the east');
+            gameState.aiDecisions.push(response);
           } else if (gameState.player.x < 200) {
             gameState.storyState = 'ally';
-            gameState.aiDecisions.push('Player met an ally in the west.');
+            const response = await fetchStoryPrompt('ally in the west');
+            gameState.aiDecisions.push(response);
           }
-          break;
-        case 'challenge':
-          if (gameState.player.y < 100) {
-            gameState.storyState = 'victory';
-            gameState.aiDecisions.push('Player overcame the challenge and won.');
-          }
-          break;
-        case 'ally':
-          if (gameState.player.y > 500) {
-            gameState.storyState = 'teamwork';
-            gameState.aiDecisions.push('Player and ally worked together.');
-          }
-          break;
-        case 'victory':
-          console.log('The story ends with victory.');
-          break;
-        case 'teamwork':
-          console.log('The story ends with teamwork.');
           break;
       }
     }
@@ -85,28 +94,55 @@
     function update() {
       const player = gameState.player;
 
-      // Player movement
-      if (keys['ArrowUp']) player.y -= player.speed;
-      if (keys['ArrowDown']) player.y += player.speed;
-      if (keys['ArrowLeft']) player.x -= player.speed;
-      if (keys['ArrowRight']) player.x += player.speed;
+      // Player movement and map scrolling
+      if (keys['ArrowUp']) gameState.mapOffset.y -= player.speed;
+      if (keys['ArrowDown']) gameState.mapOffset.y += player.speed;
+      if (keys['ArrowLeft']) gameState.mapOffset.x -= player.speed;
+      if (keys['ArrowRight']) gameState.mapOffset.x += player.speed;
 
-      // Clamp player to canvas bounds
-      player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
-      player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
+      player.x = canvas.width / 2;
+      player.y = canvas.height / 2;
 
       // Update story
       updateStory();
+    }
+
+    // Render infinite map with biomes
+    function renderMap() {
+      const tileSize = 100;
+      const cols = Math.ceil(canvas.width / tileSize) + 2;
+      const rows = Math.ceil(canvas.height / tileSize) + 2;
+
+      for (let row = -1; row < rows; row++) {
+        for (let col = -1; col < cols; col++) {
+          const tileX = col * tileSize - (gameState.mapOffset.x % tileSize);
+          const tileY = row * tileSize - (gameState.mapOffset.y % tileSize);
+
+          const biomeX = Math.floor((gameState.mapOffset.x + col * tileSize) / tileSize);
+          const biomeY = Math.floor((gameState.mapOffset.y + row * tileSize) / tileSize);
+
+          const biomeKey = `${biomeX},${biomeY}`;
+          if (!gameState.biomes[biomeKey]) {
+            gameState.biomes[biomeKey] = generateBiome(biomeX, biomeY);
+          }
+
+          ctx.fillStyle = getBiomeColor(gameState.biomes[biomeKey]);
+          ctx.fillRect(tileX, tileY, tileSize, tileSize);
+        }
+      }
     }
 
     // Game rendering
     function render() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // Draw map
+      renderMap();
+
       // Draw player
       const player = gameState.player;
       ctx.fillStyle = player.color;
-      ctx.fillRect(player.x, player.y, player.width, player.height);
+      ctx.fillRect(player.x - player.width / 2, player.y - player.height / 2, player.width, player.height);
 
       // Draw story state
       ctx.fillStyle = 'black';
