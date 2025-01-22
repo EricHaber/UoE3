@@ -99,20 +99,21 @@
 
       const isStreet = Math.random() < streetChance;
       if (isStreet) {
-        const streetKey = `${x},${y}`;
+        const direction = Math.random() < 0.5 ? 'horizontal' : 'vertical'; // Randomize direction
+        const streetKey = `${x},${y},${direction}`;
         gameState.streets[streetKey] = true;
       }
     }
 
-    function drawStreet(x, y) {
+    function drawStreet(x, y, direction) {
       const tileSize = 400;
-      if (gameState.streets[`${x},${y}`]) {
-        ctx.strokeStyle = 'gray';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y);
-        ctx.lineTo((x + 1) * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y);
-        ctx.stroke();
+      const streetWidth = 15; // Wider streets
+      if (direction === 'horizontal') {
+        ctx.fillStyle = 'beige'; // Different color for streets
+        ctx.fillRect(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y, tileSize, streetWidth);
+      } else {
+        ctx.fillStyle = 'beige'; // Different color for streets
+        ctx.fillRect(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y, streetWidth, tileSize);
       }
     }
 
@@ -222,9 +223,13 @@
             ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
           }
 
-          // Place streets and draw them
+          // Place streets
           placeStreet(biomeX, biomeY, gameState.biomes[biomeKey]);
-          drawStreet(biomeX, biomeY);
+          // Draw streets if they exist
+          const streetKeyH = `${biomeX},${biomeY},horizontal`;
+          const streetKeyV = `${biomeX},${biomeY},vertical`;
+          if (gameState.streets[streetKeyH]) drawStreet(biomeX, biomeY, 'horizontal');
+          if (gameState.streets[streetKeyV]) drawStreet(biomeX, biomeY, 'vertical');
         }
       }
     }
