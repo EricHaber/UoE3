@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Map Generation</title>
+  <title>Optimized Map Generation</title>
   <style>
     body {
       margin: 0;
@@ -53,43 +53,52 @@
 
     function placeStructure(biome, x, y) {
       const seed = Math.random();
-      if (biome === 'forest' && seed < 0.3) return 'tree';
-      if (biome === 'suburban' && seed < 0.3) return 'house';
-      if (biome === 'city' && seed < 0.3) return 'building';
+      if (biome === 'forest' && seed < 0.2) return 'tree';
+      if (biome === 'suburban' && seed < 0.4) return 'house';
+      if (biome === 'city' && seed < 0.5) return 'building';
       return null;
     }
 
     function placeStreet(x, y, biome) {
       if (!gameState.streets[`${x},${y}`]) gameState.streets[`${x},${y}`] = [];
-      const isNearHouse = gameState.structures[`${x},${y}`] === 'house';
 
-      if (isNearHouse || biome === 'city' || Math.random() < 0.1) {
-        // Create streets near houses or randomly in cities.
+      const isNearHouse = gameState.structures[`${x},${y}`] === 'house';
+      if (isNearHouse || biome === 'city') {
+        // Streets only near houses or in city
         if (!gameState.streets[`${x},${y}`].includes('horizontal')) {
           gameState.streets[`${x},${y}`].push('horizontal');
         }
-        if (!gameState.streets[`${x},${y}`].includes('vertical')) {
+        if (isNearHouse && !gameState.streets[`${x},${y}`].includes('vertical')) {
           gameState.streets[`${x},${y}`].push('vertical');
         }
       }
     }
 
-    function createNPC(x, y) {
+    function createNPC(x, y, biome) {
+      const npcSpeed = biome === 'city' ? 1.5 : biome === 'suburban' ? 1 : 0.5; // Slower in rural areas
       return {
         x: x * 400 + Math.random() * 400,
         y: y * 400 + Math.random() * 400,
-        speed: 1 + Math.random(),
+        speed: npcSpeed,
         direction: Math.random() * 2 * Math.PI,
       };
     }
 
     function spawnNPCs(biomeX, biomeY) {
       const biome = gameState.biomes[`${biomeX},${biomeY}`];
-      if (biome === 'suburban' || biome === 'city') {
-        for (let i = 0; i < 2; i++) { // Spawn 2 NPCs per valid biome
-          const npc = createNPC(biomeX, biomeY);
-          gameState.npcs.push(npc);
-        }
+      let spawnCount = 0;
+
+      if (biome === 'forest') {
+        spawnCount = Math.random() < 0.05 ? 1 : 0; // 1 NPC every 20 tiles
+      } else if (biome === 'suburban') {
+        spawnCount = 2; // 2 NPCs per biome
+      } else if (biome === 'city') {
+        spawnCount = 4; // 4 NPCs per biome
+      }
+
+      for (let i = 0; i < spawnCount; i++) {
+        const npc = createNPC(biomeX, biomeY, biome);
+        gameState.npcs.push(npc);
       }
     }
 
