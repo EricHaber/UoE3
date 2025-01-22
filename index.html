@@ -86,34 +86,6 @@
       }
     }
 
-    function createNPC(x, y, biome) {
-      const npcSpeed = biome === 'city' ? 1.5 : biome === 'suburban' ? 1 : 0.5;
-      return {
-        x: x * 400 + Math.random() * 400,
-        y: y * 400 + Math.random() * 400,
-        speed: npcSpeed,
-        direction: Math.random() * 2 * Math.PI,
-      };
-    }
-
-    function spawnNPCs(biomeX, biomeY) {
-      const biome = gameState.biomes[`${biomeX},${biomeY}`];
-      let spawnCount = 0;
-
-      if (biome === 'forest') {
-        spawnCount = Math.random() < 0.05 ? 1 : 0;
-      } else if (biome === 'suburban') {
-        spawnCount = 2;
-      } else if (biome === 'city') {
-        spawnCount = 4;
-      }
-
-      for (let i = 0; i < spawnCount; i++) {
-        const npc = createNPC(biomeX, biomeY, biome);
-        gameState.npcs.push(npc);
-      }
-    }
-
     function drawMap() {
       const tileSize = 400;
       const cols = Math.ceil(canvas.width / tileSize) + 2;
@@ -130,7 +102,6 @@
           const biomeKey = `${biomeX},${biomeY}`;
           if (!gameState.biomes[biomeKey]) {
             gameState.biomes[biomeKey] = generateBiome(biomeX, biomeY);
-            spawnNPCs(biomeX, biomeY);
           }
 
           ctx.fillStyle = getBiomeColor(gameState.biomes[biomeKey]);
@@ -148,11 +119,19 @@
             ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
           }
 
-          placeRoads(biomeX, biomeY, gameState.biomes[biomeKey]);
+          if (!gameState.roads[biomeKey]) {
+            placeRoads(biomeX, biomeY, gameState.biomes[biomeKey]);
+          }
+
           (gameState.roads[`${biomeX},${biomeY}`] || []).forEach((type) => {
             ctx.fillStyle = type.includes('Main') ? 'darkgray' : 'lightgray';
-            if (type.includes('vertical')) ctx.fillRect(tileX + tileSize / 2 - 10, tileY, 20, tileSize);
-            else if (type.includes('horizontal')) ctx.fillRect(tileX, tileY + tileSize / 2 - 10, tileSize, 20);
+            const roadWidth = type.includes('Main') ? 40 : 10;
+
+            if (type.includes('vertical')) {
+              ctx.fillRect(tileX + tileSize / 2 - roadWidth / 2, tileY, roadWidth, tileSize);
+            } else if (type.includes('horizontal')) {
+              ctx.fillRect(tileX, tileY + tileSize / 2 - roadWidth / 2, tileSize, roadWidth);
+            }
           });
         }
       }
@@ -186,13 +165,6 @@
       if (keys['ArrowDown']) gameState.mapOffset.y += gameState.player.speed;
       if (keys['ArrowLeft']) gameState.mapOffset.x -= gameState.player.speed;
       if (keys['ArrowRight']) gameState.mapOffset.x += gameState.player.speed;
-
-      gameState.npcs.forEach((npc) => {
-        npc.x += Math.cos(npc.direction) * npc.speed;
-        npc.y += Math.sin(npc.direction) * npc.speed;
-
-        if (Math.random() < 0.02) npc.direction = Math.random() * 2 * Math.PI;
-      });
     }
 
     function gameLoop() {
