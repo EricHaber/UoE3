@@ -26,7 +26,7 @@
     canvas.height = 600;
     document.body.appendChild(canvas);
 
-    const simplex = noise();
+    const simplex = openSimplexNoise(clientSeed);
 
     // OpenAI API (mock function for now)
     async function fetchStoryPrompt(input) {
