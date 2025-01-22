@@ -17,7 +17,7 @@
   </style>
 </head>
 <body>
-  <script src="simplex-noise.js"></script>
+  <script src="./simplex-noise.js"></script>
   <script>
     // Set up the canvas and game context
     const canvas = document.createElement('canvas');
@@ -25,7 +25,7 @@
     canvas.width = 800;
     canvas.height = 600;
     document.body.appendChild(canvas);
-    import { openSimplexNoise } from 'simplexNoise.js';
+    import { openSimplexNoise } from './simplexNoise.js';
 
     const simplex = new openSimplexNoise(clientSeed);
 
