@@ -19,7 +19,7 @@
 <body>
   <script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
   <script type="module">
-    const clientSeed =  Math.floor(Math.random() * (99999 - 1) ) + 1;;
+    const clientSeed = Math.floor(Math.random() * (99999 - 1)) + 1;
     const simplex = new SimplexNoise(clientSeed);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -45,6 +45,8 @@
       mapOffset: { x: 0, y: 0 },
       biomes: {},
       structures: {},
+      streets: {},
+      npcs: [],
       storyState: 'beginning',
       aiDecisions: []
     };
@@ -88,6 +90,48 @@
       }[structure] || 'black';
     }
 
+    // Add streets in the city biome
+    function placeStreet(x, y) {
+      const isStreet = Math.random() < 0.05; // 5% chance of a street
+      if (isStreet) {
+        const streetKey = `${x},${y}`;
+        gameState.streets[streetKey] = true;
+      }
+    }
+
+    function drawStreet(x, y) {
+      const tileSize = 400;
+      if (gameState.streets[`${x},${y}`]) {
+        ctx.strokeStyle = 'gray';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y);
+        ctx.lineTo((x + 1) * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y);
+        ctx.stroke();
+      }
+    }
+
+    // Create wandering NPCs in the city
+    function createNPC(x, y) {
+      return {
+        x: x * 400 + Math.random() * 400, // random start position within the tile
+        y: y * 400 + Math.random() * 400,
+        speed: 1 + Math.random() * 2, // random speed
+        direction: Math.random() * 2 * Math.PI // random initial direction
+      };
+    }
+
+    // Move NPCs
+    function moveNPC(npc) {
+      npc.x += Math.cos(npc.direction) * npc.speed;
+      npc.y += Math.sin(npc.direction) * npc.speed;
+
+      // Randomly change direction
+      if (Math.random() < 0.01) {
+        npc.direction = Math.random() * 2 * Math.PI;
+      }
+    }
+
     // Story progression AI
     async function updateStory() {
       switch (gameState.storyState) {
@@ -122,6 +166,9 @@
 
       player.x = canvas.width / 2;
       player.y = canvas.height / 2;
+
+      // Update NPCs
+      gameState.npcs.forEach(npc => moveNPC(npc));
 
       // Update story
       updateStory();
@@ -163,8 +210,21 @@
             ctx.fillStyle = getStructureColor(structure);
             ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
           }
+
+          // Draw streets
+          drawStreet(biomeX, biomeY);
         }
       }
+    }
+
+    // Render NPCs
+    function renderNPCs() {
+      gameState.npcs.forEach(npc => {
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(npc.x - gameState.mapOffset.x, npc.y - gameState.mapOffset.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+      });
     }
 
     // Game rendering
@@ -173,6 +233,9 @@
 
       // Draw map
       renderMap();
+
+      // Draw NPCs
+      renderNPCs();
 
       // Draw player
       const player = gameState.player;
@@ -191,6 +254,11 @@
       update();
       render();
       requestAnimationFrame(gameLoop);
+    }
+
+    // Create NPCs
+    for (let i = 0; i < 10; i++) {
+      gameState.npcs.push(createNPC(0, 0)); // Start NPCs at the top-left corner, for simplicity
     }
 
     gameLoop();
