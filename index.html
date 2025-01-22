@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dynamic Road Generation</title>
+  <title>Dynamic World</title>
   <style>
     body {
       margin: 0;
@@ -26,6 +26,10 @@
     document.body.appendChild(canvas);
 
     const simplex = new SimplexNoise();
+    const tileSize = 400; // Size of a biome tile
+    const roadWidthMain = 40;
+    const roadWidthSmall = 10;
+
     const gameState = {
       player: { x: 400, y: 300, width: 20, height: 20, color: 'blue', speed: 4 },
       mapOffset: { x: 0, y: 0 },
@@ -59,35 +63,33 @@
       return null;
     }
 
+    function spawnNPCs(biome, x, y) {
+      const density = biome === 'city' ? 5 : biome === 'forest' ? 0.1 : 1;
+      const npcCount = Math.floor(Math.random() * density);
+      for (let i = 0; i < npcCount; i++) {
+        const npc = {
+          x: x * tileSize + Math.random() * tileSize,
+          y: y * tileSize + Math.random() * tileSize,
+          speed: 1 + Math.random(),
+        };
+        gameState.npcs.push(npc);
+      }
+    }
+
     function placeRoads(x, y, biome) {
       if (!gameState.roads[`${x},${y}`]) gameState.roads[`${x},${y}`] = [];
 
       if (biome === 'city') {
-        // Main roads every 3 tiles
         if (x % 3 === 0) gameState.roads[`${x},${y}`].push('verticalMain');
         if (y % 3 === 0) gameState.roads[`${x},${y}`].push('horizontalMain');
-
-        // Smaller connecting roads near structures
-        if (gameState.structures[`${x},${y}`] === 'building') {
-          gameState.roads[`${x},${y}`].push('smallVertical');
-        }
       } else if (biome === 'suburban') {
-        // Smaller roads only near houses
-        if (gameState.structures[`${x},${y}`] === 'house') {
-          if (Math.random() < 0.5) gameState.roads[`${x},${y}`].push('smallVertical');
-          else gameState.roads[`${x},${y}`].push('smallHorizontal');
-        }
-      } else if (biome === 'forest') {
-        // Occasionally place a small road
-        if (Math.random() < 0.1) {
-          if (Math.random() < 0.5) gameState.roads[`${x},${y}`].push('smallVertical');
-          else gameState.roads[`${x},${y}`].push('smallHorizontal');
-        }
+        if (Math.random() < 0.5) gameState.roads[`${x},${y}`].push('smallVertical');
+      } else if (biome === 'forest' && Math.random() < 0.1) {
+        gameState.roads[`${x},${y}`].push('smallHorizontal');
       }
     }
 
     function drawMap() {
-      const tileSize = 400;
       const cols = Math.ceil(canvas.width / tileSize) + 2;
       const rows = Math.ceil(canvas.height / tileSize) + 2;
 
@@ -98,34 +100,36 @@
 
           const biomeX = Math.floor((gameState.mapOffset.x + col * tileSize) / tileSize);
           const biomeY = Math.floor((gameState.mapOffset.y + row * tileSize) / tileSize);
-
           const biomeKey = `${biomeX},${biomeY}`;
+
           if (!gameState.biomes[biomeKey]) {
-            gameState.biomes[biomeKey] = generateBiome(biomeX, biomeY);
+            const biome = generateBiome(biomeX, biomeY);
+            gameState.biomes[biomeKey] = biome;
+            spawnNPCs(biome, biomeX, biomeY);
           }
 
-          ctx.fillStyle = getBiomeColor(gameState.biomes[biomeKey]);
+          const biome = gameState.biomes[biomeKey];
+          ctx.fillStyle = getBiomeColor(biome);
           ctx.fillRect(tileX, tileY, tileSize, tileSize);
 
-          const structureKey = `${biomeX},${biomeY}`;
-          if (!gameState.structures[structureKey]) {
-            const structure = placeStructure(gameState.biomes[biomeKey], biomeX, biomeY);
-            gameState.structures[structureKey] = structure;
+          if (!gameState.structures[biomeKey]) {
+            const structure = placeStructure(biome, biomeX, biomeY);
+            gameState.structures[biomeKey] = structure;
           }
 
-          const structure = gameState.structures[structureKey];
+          const structure = gameState.structures[biomeKey];
           if (structure) {
             ctx.fillStyle = structure === 'house' ? 'brown' : 'black';
             ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
           }
 
           if (!gameState.roads[biomeKey]) {
-            placeRoads(biomeX, biomeY, gameState.biomes[biomeKey]);
+            placeRoads(biomeX, biomeY, biome);
           }
 
-          (gameState.roads[`${biomeX},${biomeY}`] || []).forEach((type) => {
+          (gameState.roads[biomeKey] || []).forEach((type) => {
             ctx.fillStyle = type.includes('Main') ? 'darkgray' : 'lightgray';
-            const roadWidth = type.includes('Main') ? 40 : 10;
+            const roadWidth = type.includes('Main') ? roadWidthMain : roadWidthSmall;
 
             if (type.includes('vertical')) {
               ctx.fillRect(tileX + tileSize / 2 - roadWidth / 2, tileY, roadWidth, tileSize);
@@ -152,7 +156,7 @@
         ctx.arc(
           npc.x - gameState.mapOffset.x,
           npc.y - gameState.mapOffset.y,
-          10,
+          5,
           0,
           Math.PI * 2
         );
