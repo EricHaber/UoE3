@@ -107,12 +107,12 @@
 
     function drawStreet(x, y, direction) {
       const tileSize = 400;
-      const streetWidth = 15; // Wider streets
+      const streetWidth = 30; 
       if (direction === 'horizontal') {
-        ctx.fillStyle = 'gray'; // Different color for streets
+        ctx.fillStyle = 'gray'; 
         ctx.fillRect(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y, tileSize, streetWidth);
       } else {
-        ctx.fillStyle = 'beige'; // Different color for streets
+        ctx.fillStyle = 'gray'; 
         ctx.fillRect(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y, streetWidth, tileSize);
       }
     }
