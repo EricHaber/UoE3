@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Map Generation Fixes</title>
+  <title>Map Generation</title>
   <style>
     body {
       margin: 0;
@@ -61,11 +61,16 @@
 
     function placeStreet(x, y, biome) {
       if (!gameState.streets[`${x},${y}`]) gameState.streets[`${x},${y}`] = [];
-      const hasStructure = gameState.structures[`${x},${y}`] === 'house';
+      const isNearHouse = gameState.structures[`${x},${y}`] === 'house';
 
-      if (hasStructure || biome === 'city' || Math.random() < 0.05) {
-        const direction = Math.random() < 0.5 ? 'horizontal' : 'vertical';
-        gameState.streets[`${x},${y}`].push(direction);
+      if (isNearHouse || biome === 'city' || Math.random() < 0.1) {
+        // Create streets near houses or randomly in cities.
+        if (!gameState.streets[`${x},${y}`].includes('horizontal')) {
+          gameState.streets[`${x},${y}`].push('horizontal');
+        }
+        if (!gameState.streets[`${x},${y}`].includes('vertical')) {
+          gameState.streets[`${x},${y}`].push('vertical');
+        }
       }
     }
 
@@ -76,6 +81,16 @@
         speed: 1 + Math.random(),
         direction: Math.random() * 2 * Math.PI,
       };
+    }
+
+    function spawnNPCs(biomeX, biomeY) {
+      const biome = gameState.biomes[`${biomeX},${biomeY}`];
+      if (biome === 'suburban' || biome === 'city') {
+        for (let i = 0; i < 2; i++) { // Spawn 2 NPCs per valid biome
+          const npc = createNPC(biomeX, biomeY);
+          gameState.npcs.push(npc);
+        }
+      }
     }
 
     function moveNPC(npc) {
@@ -101,6 +116,7 @@
           const biomeKey = `${biomeX},${biomeY}`;
           if (!gameState.biomes[biomeKey]) {
             gameState.biomes[biomeKey] = generateBiome(biomeX, biomeY);
+            spawnNPCs(biomeX, biomeY); // Spawn NPCs when biome is generated.
           }
 
           ctx.fillStyle = getBiomeColor(gameState.biomes[biomeKey]);
@@ -169,10 +185,6 @@
       drawMap();
       drawEntities();
       requestAnimationFrame(gameLoop);
-    }
-
-    for (let i = 0; i < 10; i++) {
-      gameState.npcs.push(createNPC(i, 0)); // Add NPCs near the origin
     }
 
     gameLoop();
