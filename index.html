@@ -77,8 +77,13 @@
           if (Math.random() < 0.5) gameState.roads[`${x},${y}`].push('smallVertical');
           else gameState.roads[`${x},${y}`].push('smallHorizontal');
         }
+      } else if (biome === 'forest') {
+        // Occasionally place a small road
+        if (Math.random() < 0.1) {
+          if (Math.random() < 0.5) gameState.roads[`${x},${y}`].push('smallVertical');
+          else gameState.roads[`${x},${y}`].push('smallHorizontal');
+        }
       }
-      // No roads in forest biome
     }
 
     function createNPC(x, y, biome) {
@@ -145,9 +150,9 @@
 
           placeRoads(biomeX, biomeY, gameState.biomes[biomeKey]);
           (gameState.roads[`${biomeX},${biomeY}`] || []).forEach((type) => {
-            ctx.fillStyle = type.includes('Main') ? 'darkgray' : 'gray';
-            if (type.includes('vertical')) ctx.fillRect(tileX + tileSize / 2 - 15, tileY, 30, tileSize);
-            else if (type.includes('horizontal')) ctx.fillRect(tileX, tileY + tileSize / 2 - 15, tileSize, 30);
+            ctx.fillStyle = type.includes('Main') ? 'darkgray' : 'lightgray';
+            if (type.includes('vertical')) ctx.fillRect(tileX + tileSize / 2 - 10, tileY, 20, tileSize);
+            else if (type.includes('horizontal')) ctx.fillRect(tileX, tileY + tileSize / 2 - 10, tileSize, 20);
           });
         }
       }
