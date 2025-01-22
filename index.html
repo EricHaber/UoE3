@@ -90,9 +90,14 @@
       }[structure] || 'black';
     }
 
-    // Add streets in the city biome
-    function placeStreet(x, y) {
-      const isStreet = Math.random() < 0.05; // 5% chance of a street
+    // Add streets in all biomes, but fewer in the forest
+    function placeStreet(x, y, biome) {
+      let streetChance;
+      if (biome === 'forest') streetChance = 0.01; // 1% chance in the forest
+      else if (biome === 'suburban') streetChance = 0.05; // 5% chance in suburban
+      else if (biome === 'city') streetChance = 0.1; // 10% chance in city
+
+      const isStreet = Math.random() < streetChance;
       if (isStreet) {
         const streetKey = `${x},${y}`;
         gameState.streets[streetKey] = true;
@@ -126,10 +131,16 @@
       npc.x += Math.cos(npc.direction) * npc.speed;
       npc.y += Math.sin(npc.direction) * npc.speed;
 
-      // Randomly change direction
+      // Randomly change direction occasionally
       if (Math.random() < 0.01) {
         npc.direction = Math.random() * 2 * Math.PI;
       }
+
+      // Make sure NPCs stay within bounds
+      const mapWidth = canvas.width;
+      const mapHeight = canvas.height;
+      if (npc.x < 0 || npc.x > mapWidth) npc.direction = Math.PI - npc.direction; // reverse direction if out of bounds
+      if (npc.y < 0 || npc.y > mapHeight) npc.direction = -npc.direction; // reverse direction if out of bounds
     }
 
     // Story progression AI
@@ -167,7 +178,7 @@
       player.x = canvas.width / 2;
       player.y = canvas.height / 2;
 
-      // Update NPCs
+      // Update NPCs only in the city biome
       gameState.npcs.forEach(npc => moveNPC(npc));
 
       // Update story
@@ -211,54 +222,46 @@
             ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
           }
 
-          // Draw streets
+          // Place streets and draw them
+          placeStreet(biomeX, biomeY, gameState.biomes[biomeKey]);
           drawStreet(biomeX, biomeY);
         }
       }
     }
 
-    // Render NPCs
-    function renderNPCs() {
+    // Render player and NPCs
+    function renderEntities() {
+      ctx.fillStyle = gameState.player.color;
+      ctx.fillRect(gameState.player.x - 10, gameState.player.y - 10, gameState.player.width, gameState.player.height);
+
+      // Render NPCs in the city
       gameState.npcs.forEach(npc => {
-        ctx.fillStyle = 'red';
+        ctx.fillStyle = 'red'; // NPC color
         ctx.beginPath();
         ctx.arc(npc.x - gameState.mapOffset.x, npc.y - gameState.mapOffset.y, 10, 0, Math.PI * 2);
         ctx.fill();
       });
     }
 
-    // Game rendering
+    // Main render loop
     function render() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Draw map
       renderMap();
-
-      // Draw NPCs
-      renderNPCs();
-
-      // Draw player
-      const player = gameState.player;
-      ctx.fillStyle = player.color;
-      ctx.fillRect(player.x - player.width / 2, player.y - player.height / 2, player.width, player.height);
-
-      // Draw story state
-      ctx.fillStyle = 'black';
-      ctx.font = '20px Arial';
-      ctx.fillText(`Story State: ${gameState.storyState}`, 10, 20);
-      ctx.fillText(`AI Decisions: ${gameState.aiDecisions.join(' | ')}`, 10, 50);
+      renderEntities();
     }
 
-    // Main game loop
+    // Start the game loop
     function gameLoop() {
       update();
       render();
       requestAnimationFrame(gameLoop);
     }
 
-    // Create NPCs
-    for (let i = 0; i < 10; i++) {
-      gameState.npcs.push(createNPC(0, 0)); // Start NPCs at the top-left corner, for simplicity
+    // Generate some NPCs in the city biome
+    for (let i = 0; i < 5; i++) {
+      const x = 5 + Math.floor(Math.random() * 5);
+      const y = 5 + Math.floor(Math.random() * 5);
+      gameState.npcs.push(createNPC(x, y));
     }
 
     gameLoop();
