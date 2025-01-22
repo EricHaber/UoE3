@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI adaptive game</title>
+  <title>AI Adaptive Game</title>
   <style>
     body {
       margin: 0;
@@ -17,6 +17,7 @@
   </style>
 </head>
 <body>
+  <script src="https://cdn.jsdelivr.net/npm/simplex-noise/dist/simplex-noise.min.js"></script>
   <script>
     // Set up the canvas and game context
     const canvas = document.createElement('canvas');
@@ -25,9 +26,10 @@
     canvas.height = 600;
     document.body.appendChild(canvas);
 
+    const simplex = new SimplexNoise();
+
     // OpenAI API (mock function for now)
     async function fetchStoryPrompt(input) {
-      // Simulate a response from OpenAI API
       return `Based on input '${input}', adapt the story: The land grows mysterious.`;
     }
 
@@ -53,37 +55,37 @@
     document.addEventListener('keydown', (e) => (keys[e.key] = true));
     document.addEventListener('keyup', (e) => (keys[e.key] = false));
 
-    // Generate biomes
+    // Generate biomes using Perlin noise
     function generateBiome(x, y) {
-      const seed = Math.abs((x * 1234 + y * 5678) % 100);
-      if (seed < 33) return 'forest';
-      if (seed < 66) return 'desert';
-      return 'snow';
+      const scale = 0.01;
+      const noiseValue = simplex.noise2D(x * scale, y * scale);
+
+      if (noiseValue < -0.3) return 'forest';
+      if (noiseValue < 0.3) return 'suburban';
+      return 'city';
     }
 
     function getBiomeColor(biome) {
       return {
         forest: 'green',
-        desert: 'goldenrod',
-        snow: 'white',
-      }[biome] || 'gray';
+        suburban: 'lightgreen',
+        city: 'gray',
+      }[biome] || 'black';
     }
 
     function placeStructure(biome, x, y) {
-      if (!gameState.structures[`${x},${y}`]) {
-        const seed = Math.random();
-        if (biome === 'forest' && seed < 0.3) return 'tree';
-        if (biome === 'desert' && seed < 0.2) return 'house';
-        if (biome === 'snow' && seed < 0.25) return 'building';
-        return null;
-      }
+      const seed = Math.random();
+      if (biome === 'forest' && seed < 0.3) return 'tree';
+      if (biome === 'suburban' && seed < 0.3) return 'house';
+      if (biome === 'city' && seed < 0.3) return 'building';
+      return null;
     }
 
     function getStructureColor(structure) {
       return {
         tree: 'darkgreen',
         house: 'brown',
-        building: 'gray',
+        building: 'black',
       }[structure] || 'black';
     }
 
@@ -128,7 +130,7 @@
 
     // Render infinite map with biomes and structures
     function renderMap() {
-      const tileSize = 300; // Larger biome tiles
+      const tileSize = 400; // Larger biome tiles
       const cols = Math.ceil(canvas.width / tileSize) + 2;
       const rows = Math.ceil(canvas.height / tileSize) + 2;
 
