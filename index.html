@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Adaptive Game</title>
+  <title>Map Generation Fixes</title>
   <style>
     body {
       margin: 0;
@@ -19,59 +19,36 @@
 <body>
   <script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
   <script type="module">
-    const clientSeed = Math.floor(Math.random() * (99999 - 1)) + 1;
-    const simplex = new SimplexNoise(clientSeed);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 800;
     canvas.height = 600;
     document.body.appendChild(canvas);
 
-    // OpenAI API (mock function for now)
-    async function fetchStoryPrompt(input) {
-      return `Based on input '${input}', adapt the story: The land grows mysterious.`;
-    }
-
-    // Game state
+    const simplex = new SimplexNoise();
     const gameState = {
-      player: {
-        x: 400,
-        y: 300,
-        width: 20,
-        height: 20,
-        color: 'blue',
-        speed: 4
-      },
+      player: { x: 400, y: 300, width: 20, height: 20, color: 'blue', speed: 4 },
       mapOffset: { x: 0, y: 0 },
       biomes: {},
       structures: {},
       streets: {},
       npcs: [],
-      storyState: 'beginning',
-      aiDecisions: []
     };
 
-    // Key handling
     const keys = {};
     document.addEventListener('keydown', (e) => (keys[e.key] = true));
     document.addEventListener('keyup', (e) => (keys[e.key] = false));
 
-    // Generate biomes using Perlin noise
     function generateBiome(x, y) {
       const scale = 0.01;
       const noiseValue = simplex.noise2D(x * scale, y * scale);
-
       if (noiseValue < -0.3) return 'forest';
       if (noiseValue < 0.3) return 'suburban';
       return 'city';
     }
 
     function getBiomeColor(biome) {
-      return {
-        forest: 'green',
-        suburban: 'lightgreen',
-        city: 'beige',
-      }[biome] || 'black';
+      return { forest: 'green', suburban: 'lightgreen', city: 'beige' }[biome] || 'black';
     }
 
     function placeStructure(biome, x, y) {
@@ -82,113 +59,34 @@
       return null;
     }
 
-    function getStructureColor(structure) {
-      return {
-        tree: 'darkgreen',
-        house: 'brown',
-        building: 'black',
-      }[structure] || 'black';
-    }
-
-    // Add streets in all biomes, but fewer in the forest
     function placeStreet(x, y, biome) {
-      let streetChance;
-      if (biome === 'forest') streetChance = 0.01; // 1% chance in the forest
-      else if (biome === 'suburban') streetChance = 0.05; // 5% chance in suburban
-      else if (biome === 'city') streetChance = 0.1; // 10% chance in city
+      if (!gameState.streets[`${x},${y}`]) gameState.streets[`${x},${y}`] = [];
+      const hasStructure = gameState.structures[`${x},${y}`] === 'house';
 
-      const isStreet = Math.random() < streetChance;
-      if (isStreet) {
-        const direction = Math.random() < 0.5 ? 'horizontal' : 'vertical'; // Randomize direction
-        const streetKey = `${x},${y},${direction}`;
-        gameState.streets[streetKey] = true;
+      if (hasStructure || biome === 'city' || Math.random() < 0.05) {
+        const direction = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+        gameState.streets[`${x},${y}`].push(direction);
       }
     }
 
-    function drawStreet(x, y, direction) {
-      const tileSize = 400;
-      const streetWidth = 30; 
-      if (direction === 'horizontal') {
-        ctx.fillStyle = 'gray'; 
-        ctx.fillRect(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y, tileSize, streetWidth);
-      } else {
-        ctx.fillStyle = 'gray'; 
-        ctx.fillRect(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y, streetWidth, tileSize);
-      }
-    }
-
-    // Create wandering NPCs in the city
     function createNPC(x, y) {
       return {
-        x: x * 400 + Math.random() * 400, // Random start position within the tile
+        x: x * 400 + Math.random() * 400,
         y: y * 400 + Math.random() * 400,
-        speed: 1 + Math.random() * 2, // random speed
-        direction: Math.random() * 2 * Math.PI // random initial direction
+        speed: 1 + Math.random(),
+        direction: Math.random() * 2 * Math.PI,
       };
     }
 
-    // Move NPCs
     function moveNPC(npc) {
       npc.x += Math.cos(npc.direction) * npc.speed;
       npc.y += Math.sin(npc.direction) * npc.speed;
 
-      // Randomly change direction occasionally
-      if (Math.random() < 0.01) {
-        npc.direction = Math.random() * 2 * Math.PI;
-      }
-
-      // Make sure NPCs stay within bounds
-      const mapWidth = canvas.width;
-      const mapHeight = canvas.height;
-      if (npc.x < 0 || npc.x > mapWidth) npc.direction = Math.PI - npc.direction; // reverse direction if out of bounds
-      if (npc.y < 0 || npc.y > mapHeight) npc.direction = -npc.direction; // reverse direction if out of bounds
+      if (Math.random() < 0.02) npc.direction = Math.random() * 2 * Math.PI;
     }
 
-    // Story progression AI
-    async function updateStory() {
-      switch (gameState.storyState) {
-        case 'beginning':
-          gameState.storyState = 'exploration';
-          const response = await fetchStoryPrompt('beginning');
-          gameState.aiDecisions.push(response);
-          break;
-        case 'exploration':
-          if (gameState.player.x > 600) {
-            gameState.storyState = 'challenge';
-            const response = await fetchStoryPrompt('challenge in the east');
-            gameState.aiDecisions.push(response);
-          } else if (gameState.player.x < 200) {
-            gameState.storyState = 'ally';
-            const response = await fetchStoryPrompt('ally in the west');
-            gameState.aiDecisions.push(response);
-          }
-          break;
-      }
-    }
-
-    // Game update
-    function update() {
-      const player = gameState.player;
-
-      // Player movement and map scrolling
-      if (keys['ArrowUp']) gameState.mapOffset.y -= player.speed;
-      if (keys['ArrowDown']) gameState.mapOffset.y += player.speed;
-      if (keys['ArrowLeft']) gameState.mapOffset.x -= player.speed;
-      if (keys['ArrowRight']) gameState.mapOffset.x += player.speed;
-
-      player.x = canvas.width / 2;
-      player.y = canvas.height / 2;
-
-      // Update NPCs only in the city biome
-      gameState.npcs.forEach(npc => moveNPC(npc));
-
-      // Update story
-      updateStory();
-    }
-
-    // Render infinite map with biomes and structures
-    function renderMap() {
-      const tileSize = 400; // Larger biome tiles
+    function drawMap() {
+      const tileSize = 400;
       const cols = Math.ceil(canvas.width / tileSize) + 2;
       const rows = Math.ceil(canvas.height / tileSize) + 2;
 
@@ -208,66 +106,73 @@
           ctx.fillStyle = getBiomeColor(gameState.biomes[biomeKey]);
           ctx.fillRect(tileX, tileY, tileSize, tileSize);
 
-          // Place structures
           const structureKey = `${biomeX},${biomeY}`;
           if (!gameState.structures[structureKey]) {
             const structure = placeStructure(gameState.biomes[biomeKey], biomeX, biomeY);
-            if (structure) {
-              gameState.structures[structureKey] = structure;
-            }
+            gameState.structures[structureKey] = structure;
           }
 
           const structure = gameState.structures[structureKey];
           if (structure) {
-            ctx.fillStyle = getStructureColor(structure);
+            ctx.fillStyle = structure === 'house' ? 'brown' : 'black';
             ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
           }
 
-          // Place streets and ensure they connect to houses
           placeStreet(biomeX, biomeY, gameState.biomes[biomeKey]);
-          // Draw streets if they exist
-          const streetKeyH = `${biomeX},${biomeY},horizontal`;
-          const streetKeyV = `${biomeX},${biomeY},vertical`;
-          if (gameState.streets[streetKeyH]) drawStreet(biomeX, biomeY, 'horizontal');
-          if (gameState.streets[streetKeyV]) drawStreet(biomeX, biomeY, 'vertical');
+          (gameState.streets[`${biomeX},${biomeY}`] || []).forEach((direction) => {
+            ctx.fillStyle = 'gray';
+            if (direction === 'horizontal') {
+              ctx.fillRect(tileX, tileY + tileSize / 2 - 15, tileSize, 30);
+            } else if (direction === 'vertical') {
+              ctx.fillRect(tileX + tileSize / 2 - 15, tileY, 30, tileSize);
+            }
+          });
         }
       }
     }
 
-    // Render player and NPCs
-    function renderEntities() {
+    function drawEntities() {
       ctx.fillStyle = gameState.player.color;
-      ctx.fillRect(gameState.player.x - 10, gameState.player.y - 10, gameState.player.width, gameState.player.height);
+      ctx.fillRect(
+        gameState.player.x - gameState.player.width / 2,
+        gameState.player.y - gameState.player.height / 2,
+        gameState.player.width,
+        gameState.player.height
+      );
 
-      // Render NPCs in the city
-      gameState.npcs.forEach(npc => {
-        ctx.fillStyle = 'red'; // NPC color
+      gameState.npcs.forEach((npc) => {
+        ctx.fillStyle = 'red';
         ctx.beginPath();
-        ctx.arc(npc.x - gameState.mapOffset.x, npc.y - gameState.mapOffset.y, 10, 0, Math.PI * 2);
+        ctx.arc(
+          npc.x - gameState.mapOffset.x,
+          npc.y - gameState.mapOffset.y,
+          10,
+          0,
+          Math.PI * 2
+        );
         ctx.fill();
       });
     }
 
-    // Main render loop
-    function render() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      renderMap();
-      renderEntities();
+    function update() {
+      if (keys['ArrowUp']) gameState.mapOffset.y -= gameState.player.speed;
+      if (keys['ArrowDown']) gameState.mapOffset.y += gameState.player.speed;
+      if (keys['ArrowLeft']) gameState.mapOffset.x -= gameState.player.speed;
+      if (keys['ArrowRight']) gameState.mapOffset.x += gameState.player.speed;
+
+      gameState.npcs.forEach((npc) => moveNPC(npc));
     }
 
-    // Start the game loop
     function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       update();
-      render();
-      gameState.npcs.forEach(npc => moveNPC(npc));  // Move NPCs after each update
+      drawMap();
+      drawEntities();
       requestAnimationFrame(gameLoop);
     }
 
-    // Generate some NPCs in the city biome
-    for (let i = 0; i < 5; i++) {
-      const x = Math.floor(Math.random() * 5) + 5;  // Ensure NPCs are created in the city
-      const y = Math.floor(Math.random() * 5) + 5;
-      gameState.npcs.push(createNPC(x, y));
+    for (let i = 0; i < 10; i++) {
+      gameState.npcs.push(createNPC(i, 0)); // Add NPCs near the origin
     }
 
     gameLoop();
