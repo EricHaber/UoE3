@@ -27,6 +27,11 @@
     canvas.height = 600;
     document.body.appendChild(canvas);
 
+    // OpenAI API (mock function for now)
+    async function fetchStoryPrompt(input) {
+      return `Based on input '${input}', adapt the story: The land grows mysterious.`;
+    }
+
     // Game state
     const gameState = {
       player: {
@@ -85,22 +90,7 @@
       }[structure] || 'black';
     }
 
-    // Pre-generate streets for the entire map
-    function preGenerateStreets() {
-      const tileSize = 400;
-      const cols = Math.ceil(canvas.width / tileSize) + 2;
-      const rows = Math.ceil(canvas.height / tileSize) + 2;
-      
-      for (let row = -1; row < rows; row++) {
-        for (let col = -1; col < cols; col++) {
-          const biomeX = Math.floor((gameState.mapOffset.x + col * tileSize) / tileSize);
-          const biomeY = Math.floor((gameState.mapOffset.y + row * tileSize) / tileSize);
-          const biome = generateBiome(biomeX, biomeY);
-          placeStreet(biomeX, biomeY, biome);
-        }
-      }
-    }
-
+    // Add streets in all biomes, but fewer in the forest
     function placeStreet(x, y, biome) {
       let streetChance;
       if (biome === 'forest') streetChance = 0.01; // 1% chance in the forest
@@ -117,7 +107,7 @@
 
     function drawStreet(x, y, direction) {
       const tileSize = 400;
-      const streetWidth = 30;
+      const streetWidth = 30; 
       if (direction === 'horizontal') {
         ctx.fillStyle = 'gray'; 
         ctx.fillRect(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y, tileSize, streetWidth);
@@ -130,7 +120,7 @@
     // Create wandering NPCs in the city
     function createNPC(x, y) {
       return {
-        x: x * 400 + Math.random() * 400, // random start position within the tile
+        x: x * 400 + Math.random() * 400, // Random start position within the tile
         y: y * 400 + Math.random() * 400,
         speed: 1 + Math.random() * 2, // random speed
         direction: Math.random() * 2 * Math.PI // random initial direction
@@ -154,6 +144,28 @@
       if (npc.y < 0 || npc.y > mapHeight) npc.direction = -npc.direction; // reverse direction if out of bounds
     }
 
+    // Story progression AI
+    async function updateStory() {
+      switch (gameState.storyState) {
+        case 'beginning':
+          gameState.storyState = 'exploration';
+          const response = await fetchStoryPrompt('beginning');
+          gameState.aiDecisions.push(response);
+          break;
+        case 'exploration':
+          if (gameState.player.x > 600) {
+            gameState.storyState = 'challenge';
+            const response = await fetchStoryPrompt('challenge in the east');
+            gameState.aiDecisions.push(response);
+          } else if (gameState.player.x < 200) {
+            gameState.storyState = 'ally';
+            const response = await fetchStoryPrompt('ally in the west');
+            gameState.aiDecisions.push(response);
+          }
+          break;
+      }
+    }
+
     // Game update
     function update() {
       const player = gameState.player;
@@ -169,6 +181,9 @@
 
       // Update NPCs only in the city biome
       gameState.npcs.forEach(npc => moveNPC(npc));
+
+      // Update story
+      updateStory();
     }
 
     // Render infinite map with biomes and structures
@@ -208,7 +223,9 @@
             ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
           }
 
-          // Draw pre-generated streets
+          // Place streets and ensure they connect to houses
+          placeStreet(biomeX, biomeY, gameState.biomes[biomeKey]);
+          // Draw streets if they exist
           const streetKeyH = `${biomeX},${biomeY},horizontal`;
           const streetKeyV = `${biomeX},${biomeY},vertical`;
           if (gameState.streets[streetKeyH]) drawStreet(biomeX, biomeY, 'horizontal');
@@ -242,18 +259,16 @@
     function gameLoop() {
       update();
       render();
+      gameState.npcs.forEach(npc => moveNPC(npc));  // Move NPCs after each update
       requestAnimationFrame(gameLoop);
     }
 
     // Generate some NPCs in the city biome
     for (let i = 0; i < 5; i++) {
-      const x = 5 + Math.floor(Math.random() * 5);
-      const y = 5 + Math.floor(Math.random() * 5);
+      const x = Math.floor(Math.random() * 5) + 5;  // Ensure NPCs are created in the city
+      const y = Math.floor(Math.random() * 5) + 5;
       gameState.npcs.push(createNPC(x, y));
     }
-
-    // Pre-generate streets once
-    preGenerateStreets();
 
     gameLoop();
   </script>
