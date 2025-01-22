@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Infinite Biome Game</title>
+  <title>AI adaptive game</title>
   <style>
     body {
       margin: 0;
@@ -43,6 +43,7 @@
       },
       mapOffset: { x: 0, y: 0 },
       biomes: {},
+      structures: {},
       storyState: 'beginning',
       aiDecisions: []
     };
@@ -66,6 +67,24 @@
         desert: 'goldenrod',
         snow: 'white',
       }[biome] || 'gray';
+    }
+
+    function placeStructure(biome, x, y) {
+      if (!gameState.structures[`${x},${y}`]) {
+        const seed = Math.random();
+        if (biome === 'forest' && seed < 0.3) return 'tree';
+        if (biome === 'desert' && seed < 0.2) return 'house';
+        if (biome === 'snow' && seed < 0.25) return 'building';
+        return null;
+      }
+    }
+
+    function getStructureColor(structure) {
+      return {
+        tree: 'darkgreen',
+        house: 'brown',
+        building: 'gray',
+      }[structure] || 'black';
     }
 
     // Story progression AI
@@ -107,9 +126,9 @@
       updateStory();
     }
 
-    // Render infinite map with biomes
+    // Render infinite map with biomes and structures
     function renderMap() {
-      const tileSize = 100;
+      const tileSize = 300; // Larger biome tiles
       const cols = Math.ceil(canvas.width / tileSize) + 2;
       const rows = Math.ceil(canvas.height / tileSize) + 2;
 
@@ -128,6 +147,21 @@
 
           ctx.fillStyle = getBiomeColor(gameState.biomes[biomeKey]);
           ctx.fillRect(tileX, tileY, tileSize, tileSize);
+
+          // Place structures
+          const structureKey = `${biomeX},${biomeY}`;
+          if (!gameState.structures[structureKey]) {
+            const structure = placeStructure(gameState.biomes[biomeKey], biomeX, biomeY);
+            if (structure) {
+              gameState.structures[structureKey] = structure;
+            }
+          }
+
+          const structure = gameState.structures[structureKey];
+          if (structure) {
+            ctx.fillStyle = getStructureColor(structure);
+            ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
+          }
         }
       }
     }
