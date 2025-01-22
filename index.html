@@ -70,7 +70,7 @@
       return {
         forest: 'green',
         suburban: 'lightgreen',
-        city: 'gray',
+        city: 'beige',
       }[biome] || 'black';
     }
 
@@ -109,7 +109,7 @@
       const tileSize = 400;
       const streetWidth = 15; // Wider streets
       if (direction === 'horizontal') {
-        ctx.fillStyle = 'beige'; // Different color for streets
+        ctx.fillStyle = 'gray'; // Different color for streets
         ctx.fillRect(x * tileSize - gameState.mapOffset.x, y * tileSize - gameState.mapOffset.y, tileSize, streetWidth);
       } else {
         ctx.fillStyle = 'beige'; // Different color for streets
