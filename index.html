@@ -70,7 +70,8 @@
         const npc = {
           x: x * tileSize + Math.random() * tileSize,
           y: y * tileSize + Math.random() * tileSize,
-          speed: 1 + Math.random(),
+          speed: (biome === 'city' ? 1.5 : 0.5) + Math.random() * 0.5,
+          direction: Math.random() * Math.PI * 2,
         };
         gameState.npcs.push(npc);
       }
@@ -87,6 +88,19 @@
       } else if (biome === 'forest' && Math.random() < 0.1) {
         gameState.roads[`${x},${y}`].push('smallHorizontal');
       }
+    }
+
+    function drawRoads(tileX, tileY, roads) {
+      roads.forEach((type) => {
+        ctx.fillStyle = type.includes('Main') ? 'darkgray' : 'lightgray';
+        const roadWidth = type.includes('Main') ? roadWidthMain : roadWidthSmall;
+
+        if (type.includes('vertical')) {
+          ctx.fillRect(tileX + tileSize / 2 - roadWidth / 2, tileY, roadWidth, tileSize);
+        } else if (type.includes('horizontal')) {
+          ctx.fillRect(tileX, tileY + tileSize / 2 - roadWidth / 2, tileSize, roadWidth);
+        }
+      });
     }
 
     function drawMap() {
@@ -127,16 +141,7 @@
             placeRoads(biomeX, biomeY, biome);
           }
 
-          (gameState.roads[biomeKey] || []).forEach((type) => {
-            ctx.fillStyle = type.includes('Main') ? 'darkgray' : 'lightgray';
-            const roadWidth = type.includes('Main') ? roadWidthMain : roadWidthSmall;
-
-            if (type.includes('vertical')) {
-              ctx.fillRect(tileX + tileSize / 2 - roadWidth / 2, tileY, roadWidth, tileSize);
-            } else if (type.includes('horizontal')) {
-              ctx.fillRect(tileX, tileY + tileSize / 2 - roadWidth / 2, tileSize, roadWidth);
-            }
-          });
+          drawRoads(tileX, tileY, gameState.roads[biomeKey] || []);
         }
       }
     }
@@ -164,11 +169,24 @@
       });
     }
 
+    function updateNPCs() {
+      gameState.npcs.forEach((npc) => {
+        npc.x += Math.cos(npc.direction) * npc.speed;
+        npc.y += Math.sin(npc.direction) * npc.speed;
+
+        if (Math.random() < 0.01) {
+          npc.direction += (Math.random() - 0.5) * Math.PI / 4;
+        }
+      });
+    }
+
     function update() {
       if (keys['ArrowUp']) gameState.mapOffset.y -= gameState.player.speed;
       if (keys['ArrowDown']) gameState.mapOffset.y += gameState.player.speed;
       if (keys['ArrowLeft']) gameState.mapOffset.x -= gameState.player.speed;
       if (keys['ArrowRight']) gameState.mapOffset.x += gameState.player.speed;
+
+      updateNPCs();
     }
 
     function gameLoop() {
