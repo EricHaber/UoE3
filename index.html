@@ -176,19 +176,19 @@
       // Draw 1x2 house (spans across 2 tiles horizontally)
       else if (structure === 'house1x2') {
         ctx.fillStyle = 'brown';
-        ctx.fillRect(tileX, tileY + tileSize / 3, tileSize * 2, tileSize / 3);
+        ctx.fillRect(tileX, tileY + tileSize / 3, tileSize * 1.2, tileSize / 3);
       }
       // Draw 2x2 building (spans across 4 tiles)
       else if (structure === 'building2x2') {
         ctx.fillStyle = 'gray';
         // Adjust the size of the 2x2 building (span across 2x2 tiles)
-        ctx.fillRect(tileX, tileY, tileSize * 2, tileSize * 2);
+        ctx.fillRect(tileX, tileY, tileSize * 1.6, tileSize * 1.6);
       }
       // Draw 3x3 building (spans across 9 tiles)
       else if (structure === 'building3x3') {
         ctx.fillStyle = 'darkgray';
         // Adjust the size of the 3x3 building (span across 3x3 tiles)
-        ctx.fillRect(tileX, tileY, tileSize * 3, tileSize * 3);
+        ctx.fillRect(tileX, tileY, tileSize * 2.3, tileSize * 2.3);
       }
     }
 
