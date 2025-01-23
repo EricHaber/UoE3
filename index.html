@@ -93,7 +93,7 @@
 
     function drawRoads(tileX, tileY, roads) {
       roads.forEach((type) => {
-        ctx.fillStyle = type.includes('Main') ? 'darkgray' : 'lightgray';
+        ctx.fillStyle = type.includes('Main') ? 'darkgray' : '#d3d3d3'; // Slightly different color for small roads
         const roadWidth = type.includes('Main') ? roadWidthMain : roadWidthSmall;
 
         if (type.includes('vertical')) {
@@ -127,6 +127,13 @@
           ctx.fillStyle = getBiomeColor(biome);
           ctx.fillRect(tileX, tileY, tileSize, tileSize);
 
+          if (!gameState.roads[biomeKey]) {
+            placeRoads(biomeX, biomeY, biome);
+          }
+
+          // Draw roads here to ensure they are rendered after the biome but before structures
+          drawRoads(tileX, tileY, gameState.roads[biomeKey] || []);
+
           if (!gameState.structures[biomeKey]) {
             const structure = placeStructure(biome, biomeX, biomeY);
             gameState.structures[biomeKey] = structure;
@@ -137,12 +144,6 @@
             ctx.fillStyle = structure === 'house' ? 'brown' : 'black';
             ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
           }
-
-          if (!gameState.roads[biomeKey]) {
-            placeRoads(biomeX, biomeY, biome);
-          }
-
-          drawRoads(tileX, tileY, gameState.roads[biomeKey] || []);
         }
       }
     }
