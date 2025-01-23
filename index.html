@@ -94,10 +94,13 @@
             gameState.structures[key] = structure;
           }
         }
+        // Draw the structure
+        drawStructures(x * tileSize, y * tileSize, structure, width, height);
         return structure;
       }
       return null; // No space available
     }
+
 
     function spawnNPCs(biome, x, y) {
       const density = biome === 'city' ? 5 : biome === 'forest' ? 0.1 : 1;
@@ -156,7 +159,7 @@
       });
     }
 
-    function drawStructures(tileX, tileY, structure) {
+    function drawStructures(tileX, tileY, structure, width, height) {
       // Draw tree (1x1)
       if (structure === 'tree') {
         ctx.fillStyle = 'darkgreen';
@@ -173,30 +176,21 @@
       else if (structure === 'house1x2') {
         ctx.fillStyle = 'brown';
         ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 3, tileSize / 2, tileSize / 3);
-        ctx.fillRect(tileX + tileSize, tileY + tileSize / 3, tileSize / 2, tileSize / 3);
       }
       // Draw 2x2 building (spans across 4 tiles)
       else if (structure === 'building2x2') {
         ctx.fillStyle = 'gray';
-        ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 4, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize, tileY + tileSize / 4, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize / 4, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
+        // Draw a single large rectangle for the 2x2 building
+        ctx.fillRect(tileX, tileY, tileSize * 2, tileSize * 2);
       }
       // Draw 3x3 building (spans across 9 tiles)
       else if (structure === 'building3x3') {
         ctx.fillStyle = 'darkgray';
-        ctx.fillRect(tileX + tileSize / 6, tileY + tileSize / 6, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize, tileY + tileSize / 6, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize * 2, tileY + tileSize / 6, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize / 6, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize * 2, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize / 6, tileY + tileSize * 2, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize, tileY + tileSize * 2, tileSize * 2 / 3, tileSize * 2 / 3);
-        ctx.fillRect(tileX + tileSize * 2, tileY + tileSize * 2, tileSize * 2 / 3, tileSize * 2 / 3);
+        // Draw a single large rectangle for the 3x3 building
+        ctx.fillRect(tileX, tileY, tileSize * 3, tileSize * 3);
       }
     }
+
 
 
 
