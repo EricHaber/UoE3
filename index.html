@@ -60,12 +60,13 @@
         for (let j = 0; j < height; j++) {
           const key = `${x + i},${y + j}`;
           if (gameState.structures[key]) {
-            return true; // The tile is occupied
+            return true; // Tile is occupied
           }
         }
       }
-      return false;
+      return false; // All tiles are free
     }
+
     
     function placeStructure(biome, x, y) {
       const seed = Math.random();
@@ -73,6 +74,7 @@
       let width = 1;
       let height = 1;
     
+      // Select the building based on the biome and random seed
       if (biome === 'forest') return seed < 0.5 ? 'tree' : null;
       if (biome === 'suburban') {
         if (seed < 0.5) structure = 'house1x1'; 
@@ -85,6 +87,7 @@
     
       // Check if the area is free
       if (!isTileOccupied(x, y, width, height)) {
+        // Mark the area as occupied
         for (let i = 0; i < width; i++) {
           for (let j = 0; j < height; j++) {
             const key = `${x + i},${y + j}`;
@@ -93,7 +96,7 @@
         }
         return structure;
       }
-      return null; // Return null if no space available
+      return null; // No space available
     }
 
     function spawnNPCs(biome, x, y) {
@@ -154,7 +157,7 @@
     }
 
     function drawStructures(tileX, tileY, structure) {
-      // Draw trees (one tile)
+      // Draw tree (1x1)
       if (structure === 'tree') {
         ctx.fillStyle = 'darkgreen';
         ctx.beginPath();
@@ -170,14 +173,12 @@
       else if (structure === 'house1x2') {
         ctx.fillStyle = 'brown';
         ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 3, tileSize / 2, tileSize / 3);
-        // Mark the second tile for the house
         ctx.fillRect(tileX + tileSize, tileY + tileSize / 3, tileSize / 2, tileSize / 3);
       }
       // Draw 2x2 building (spans across 4 tiles)
       else if (structure === 'building2x2') {
         ctx.fillStyle = 'gray';
         ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 4, tileSize * 2 / 3, tileSize * 2 / 3);
-        // Mark the other 3 tiles for the 2x2 building
         ctx.fillRect(tileX + tileSize, tileY + tileSize / 4, tileSize * 2 / 3, tileSize * 2 / 3);
         ctx.fillRect(tileX + tileSize / 4, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
         ctx.fillRect(tileX + tileSize, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
@@ -186,14 +187,17 @@
       else if (structure === 'building3x3') {
         ctx.fillStyle = 'darkgray';
         ctx.fillRect(tileX + tileSize / 6, tileY + tileSize / 6, tileSize * 2 / 3, tileSize * 2 / 3);
-        // Mark the other 8 tiles for the 3x3 building
-        for (let i = 0; i < 3; i++) {
-          for (let j = 0; j < 3; j++) {
-            ctx.fillRect(tileX + i * tileSize / 3, tileY + j * tileSize / 3, tileSize, tileSize);
-          }
-        }
+        ctx.fillRect(tileX + tileSize, tileY + tileSize / 6, tileSize * 2 / 3, tileSize * 2 / 3);
+        ctx.fillRect(tileX + tileSize * 2, tileY + tileSize / 6, tileSize * 2 / 3, tileSize * 2 / 3);
+        ctx.fillRect(tileX + tileSize / 6, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
+        ctx.fillRect(tileX + tileSize, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
+        ctx.fillRect(tileX + tileSize * 2, tileY + tileSize, tileSize * 2 / 3, tileSize * 2 / 3);
+        ctx.fillRect(tileX + tileSize / 6, tileY + tileSize * 2, tileSize * 2 / 3, tileSize * 2 / 3);
+        ctx.fillRect(tileX + tileSize, tileY + tileSize * 2, tileSize * 2 / 3, tileSize * 2 / 3);
+        ctx.fillRect(tileX + tileSize * 2, tileY + tileSize * 2, tileSize * 2 / 3, tileSize * 2 / 3);
       }
     }
+
 
 
     function drawMap() {
