@@ -106,21 +106,42 @@
     }
 
   
-    function drawRoads(tileX, tileY, roads) {
-      roads.forEach((type) => {
-        const isMainRoad = type.includes('Main');
-        ctx.fillStyle = isMainRoad ? 'darkgray' : '#d3d3d3'; // Small roads: light gray
-        const roadWidth = isMainRoad ? roadWidthMain : roadWidthSmall;
-    
-        if (type.includes('vertical')) {
-          ctx.fillRect(tileX + tileSize / 2 - roadWidth / 2, tileY, roadWidth, tileSize);
-          if (!isMainRoad) console.log(`Drawing small vertical road at (${tileX}, ${tileY})`);
-        } else if (type.includes('horizontal')) {
-          ctx.fillRect(tileX, tileY + tileSize / 2 - roadWidth / 2, tileSize, roadWidth);
-          if (!isMainRoad) console.log(`Drawing small horizontal road at (${tileX}, ${tileY})`);
-        }
-      });
-    }
+  function drawRoads(tileX, tileY, roads) {
+    roads.forEach((type) => {
+      // Determine road color and width based on type
+      let roadColor, roadWidth;
+      if (type.includes('Main')) {
+        roadColor = 'darkgray';
+        roadWidth = roadWidthMain;
+      } else {
+        roadColor = 'gray';
+        roadWidth = roadWidthSmall;
+      }
+  
+      // Set the drawing style
+      ctx.fillStyle = roadColor;
+  
+      // Draw vertical and horizontal roads based on type
+      if (type.includes('vertical')) {
+        ctx.fillRect(
+          tileX + tileSize / 2 - roadWidth / 2, // Centered vertically
+          tileY,
+          roadWidth,
+          tileSize
+        );
+        console.log(`Drawing ${type} at vertical (${tileX}, ${tileY}) with width ${roadWidth}`);
+      } else if (type.includes('horizontal')) {
+        ctx.fillRect(
+          tileX,
+          tileY + tileSize / 2 - roadWidth / 2, // Centered horizontally
+          tileSize,
+          roadWidth
+        );
+        console.log(`Drawing ${type} at horizontal (${tileX}, ${tileY}) with width ${roadWidth}`);
+      }
+    });
+  }
+
 
 
 
