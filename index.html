@@ -78,14 +78,14 @@
       if (biome === 'forest') return seed < 0.5 ? 'tree' : null;
       if (biome === 'suburban') {
         if (seed < 0.5) structure = 'house1x1'; 
-        else structure = 'house1x2', width = 2, height = 1;
+        else structure = 'house1x2', width = 2, height = 1; // Adjust width and height for 1x2 house
       }
       if (biome === 'city') {
         if (seed < 0.5) structure = 'building2x2', width = 2, height = 2;
         else structure = 'building3x3', width = 3, height = 3;
       }
     
-      // Check if the area is free
+      // Check if the area is free (make sure no overlapping structures)
       if (!isTileOccupied(x, y, width, height)) {
         // Mark the area as occupied
         for (let i = 0; i < width; i++) {
@@ -100,6 +100,7 @@
       }
       return null; // No space available
     }
+
 
 
     function spawnNPCs(biome, x, y) {
@@ -175,21 +176,22 @@
       // Draw 1x2 house (spans across 2 tiles horizontally)
       else if (structure === 'house1x2') {
         ctx.fillStyle = 'brown';
-        ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 3, tileSize / 2, tileSize / 3);
+        ctx.fillRect(tileX, tileY + tileSize / 3, tileSize * 2, tileSize / 3);
       }
       // Draw 2x2 building (spans across 4 tiles)
       else if (structure === 'building2x2') {
         ctx.fillStyle = 'gray';
-        // Draw a single large rectangle for the 2x2 building
+        // Adjust the size of the 2x2 building (span across 2x2 tiles)
         ctx.fillRect(tileX, tileY, tileSize * 2, tileSize * 2);
       }
       // Draw 3x3 building (spans across 9 tiles)
       else if (structure === 'building3x3') {
         ctx.fillStyle = 'darkgray';
-        // Draw a single large rectangle for the 3x3 building
+        // Adjust the size of the 3x3 building (span across 3x3 tiles)
         ctx.fillRect(tileX, tileY, tileSize * 3, tileSize * 3);
       }
     }
+
 
 
 
