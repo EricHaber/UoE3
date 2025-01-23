@@ -77,30 +77,33 @@
         gameState.npcs.push(npc);
       }
     }
-    
-    function placeRoads(x, y, biome) {
-      if (!gameState.roads[`${x},${y}`]) gameState.roads[`${x},${y}`] = [];
-    
+
+    function generateRoadNetwork(x, y, biome) {
+      const roads = [];
       if (biome === 'city') {
-        if (x % 3 === 0) gameState.roads[`${x},${y}`].push('verticalMain');
-        if (y % 3 === 0) gameState.roads[`${x},${y}`].push('horizontalMain');
+        roads.push('verticalMain', 'horizontalMain');
       } else if (biome === 'suburban') {
-        if (Math.random() < 0.5) {
-          gameState.roads[`${x},${y}`].push('smallvertical');
-          console.log(`Small vertical road added at (${x}, ${y})`);
-        }
-        if (Math.random() < 0.5) {
-          gameState.roads[`${x},${y}`].push('smallhorizontal');
-          console.log(`Small horizontal road added at (${x}, ${y})`);
-        }
+        if (Math.random() < 0.7) roads.push('smallvertical');
+        if (Math.random() < 0.7) roads.push('smallhorizontal');
       } else if (biome === 'forest') {
-        if (Math.random() < 0.2) {
-          gameState.roads[`${x},${y}`].push('smallvertical');
-          console.log(`Small vertical road added at (${x}, ${y})`);
-        }
-        if (Math.random() < 0.2) {
-          gameState.roads[`${x},${y}`].push('smallhorizontal');
-          console.log(`Small horizontal road added at (${x}, ${y})`);
+        if (Math.random() < 0.2) roads.push('smallvertical');
+        if (Math.random() < 0.2) roads.push('smallhorizontal');
+      }
+      return roads;
+    }
+
+    function placeRoads(x, y, biome) {
+      const key = `${x},${y}`;
+      if (!gameState.roads[key]) {
+        gameState.roads[key] = generateRoadNetwork(x, y, biome);
+      }
+    }
+
+    function ensureRoadConnectivity() {
+      // Connect all houses to roads logically
+      for (const [key, structures] of Object.entries(gameState.structures)) {
+        if (structures === 'house' && !gameState.roads[key].length) {
+          gameState.roads[key].push('smallvertical');
         }
       }
     }
@@ -145,7 +148,6 @@
             placeRoads(biomeX, biomeY, biome);
           }
 
-          // Draw roads here to ensure they are rendered after the biome but before structures
           drawRoads(tileX, tileY, gameState.roads[biomeKey] || []);
 
           if (!gameState.structures[biomeKey]) {
@@ -160,6 +162,7 @@
           }
         }
       }
+      ensureRoadConnectivity();
     }
 
     function drawEntities() {
