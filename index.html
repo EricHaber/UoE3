@@ -78,31 +78,34 @@
       }
     }
 
-    function placeRoads(x, y, biome) {
-      if (!gameState.roads[`${x},${y}`]) gameState.roads[`${x},${y}`] = [];
-
-      if (biome === 'city') {
-        if (x % 3 === 0) gameState.roads[`${x},${y}`].push('verticalMain');
-        if (y % 3 === 0) gameState.roads[`${x},${y}`].push('horizontalMain');
-      } else if (biome === 'suburban') {
-        if (Math.random() < 0.5) gameState.roads[`${x},${y}`].push('smallVertical');
-      } else if (biome === 'forest' && Math.random() < 0.1) {
-        gameState.roads[`${x},${y}`].push('smallHorizontal');
+  function placeRoads(x, y, biome) {
+    if (!gameState.roads[`${x},${y}`]) gameState.roads[`${x},${y}`] = [];
+  
+    if (biome === 'city') {
+      if (x % 3 === 0) gameState.roads[`${x},${y}`].push('verticalMain');
+      if (y % 3 === 0) gameState.roads[`${x},${y}`].push('horizontalMain');
+    } else if (biome === 'suburban') {
+      if (Math.random() < 0.5) gameState.roads[`${x},${y}`].push('smallVertical');
+      if (Math.random() < 0.5) gameState.roads[`${x},${y}`].push('smallHorizontal');
+    } else if (biome === 'forest') {
+      if (Math.random() < 0.2) gameState.roads[`${x},${y}`].push('smallVertical');
+      if (Math.random() < 0.2) gameState.roads[`${x},${y}`].push('smallHorizontal');
+    }
+  }
+  
+  function drawRoads(tileX, tileY, roads) {
+    roads.forEach((type) => {
+      ctx.fillStyle = type.includes('Main') ? 'darkgray' : '#d3d3d3'; // Different colors for small and main roads
+      const roadWidth = type.includes('Main') ? roadWidthMain : roadWidthSmall;
+  
+      if (type.includes('vertical')) {
+        ctx.fillRect(tileX + tileSize / 2 - roadWidth / 2, tileY, roadWidth, tileSize);
+      } else if (type.includes('horizontal')) {
+        ctx.fillRect(tileX, tileY + tileSize / 2 - roadWidth / 2, tileSize, roadWidth);
       }
-    }
+    });
+  }
 
-    function drawRoads(tileX, tileY, roads) {
-      roads.forEach((type) => {
-        ctx.fillStyle = type.includes('Main') ? 'darkgray' : '#d3d3d3'; // Slightly different color for small roads
-        const roadWidth = type.includes('Main') ? roadWidthMain : roadWidthSmall;
-
-        if (type.includes('vertical')) {
-          ctx.fillRect(tileX + tileSize / 2 - roadWidth / 2, tileY, roadWidth, tileSize);
-        } else if (type.includes('horizontal')) {
-          ctx.fillRect(tileX, tileY + tileSize / 2 - roadWidth / 2, tileSize, roadWidth);
-        }
-      });
-    }
 
     function drawMap() {
       const cols = Math.ceil(canvas.width / tileSize) + 2;
