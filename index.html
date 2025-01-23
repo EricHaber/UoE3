@@ -79,71 +79,31 @@
     }
 
     function placeRoads(x, y, biome) {
-      if (!gameState.roads[`${x},${y}`]) gameState.roads[`${x},${y}`] = [];
-    
+      const key = `${x},${y}`;
+      if (!gameState.roads[key]) gameState.roads[key] = [];
+
       if (biome === 'city') {
-        if (x % 3 === 0) gameState.roads[`${x},${y}`].push('verticalMain');
-        if (y % 3 === 0) gameState.roads[`${x},${y}`].push('horizontalMain');
+        if (x % 3 === 0) gameState.roads[key].push('verticalMain');
+        if (y % 3 === 0) gameState.roads[key].push('horizontalMain');
       } else if (biome === 'suburban') {
-        if (Math.random() < 0.5) {
-          gameState.roads[`${x},${y}`].push('verticalSmall');
-          console.log(`Small vertical road added at (${x}, ${y})`);
-        }
-        if (Math.random() < 0.5) {
-          gameState.roads[`${x},${y}`].push('horizontalSmall');
-          console.log(`Small horizontal road added at (${x}, ${y})`);
-        }
-      } else if (biome === 'forest') {
-        if (Math.random() < 0.2) {
-          gameState.roads[`${x},${y}`].push('verticalSmall');
-          console.log(`Small vertical road added at (${x}, ${y})`);
-        }
-        if (Math.random() < 0.2) {
-          gameState.roads[`${x},${y}`].push('horizontalSmall');
-          console.log(`Small horizontal road added at (${x}, ${y})`);
-        }
+        if (Math.random() < 0.5) gameState.roads[key].push('smallvertical');
+      } else if (biome === 'forest' && Math.random() < 0.1) {
+        gameState.roads[key].push('smallhorizontal');
       }
     }
 
-  
-  function drawRoads(tileX, tileY, roads) {
-    roads.forEach((type) => {
-      // Determine road color and width based on type
-      let roadColor, roadWidth;
-      if (type.includes('Main')) {
-        roadColor = 'darkgray';
-        roadWidth = roadWidthMain;
-      } else {
-        roadColor = 'gray';
-        roadWidth = roadWidthSmall;
-      }
-  
-      // Set the drawing style
-      ctx.fillStyle = roadColor;
-  
-      // Draw vertical and horizontal roads based on type
-      if (type.includes('vertical')) {
-        ctx.fillRect(
-          tileX + tileSize / 2 - roadWidth / 2, // Centered vertically
-          tileY,
-          roadWidth,
-          tileSize
-        );
-        console.log(`Drawing ${type} at vertical (${tileX}, ${tileY}) with width ${roadWidth}`);
-      } else if (type.includes('horizontal')) {
-        ctx.fillRect(
-          tileX,
-          tileY + tileSize / 2 - roadWidth / 2, // Centered horizontally
-          tileSize,
-          roadWidth
-        );
-        console.log(`Drawing ${type} at horizontal (${tileX}, ${tileY}) with width ${roadWidth}`);
-      }
-    });
-  }
+    function drawRoads(tileX, tileY, roads) {
+      roads.forEach((type) => {
+        ctx.fillStyle = type.includes('Main') ? 'darkgray' : '#d3d3d3'; // Slightly different color for small roads
+        const roadWidth = type.includes('Main') ? roadWidthMain : roadWidthSmall;
 
-
-
+        if (type.includes('vertical')) {
+          ctx.fillRect(tileX + tileSize / 2 - roadWidth / 2, tileY, roadWidth, tileSize);
+        } else if (type.includes('horizontal')) {
+          ctx.fillRect(tileX, tileY + tileSize / 2 - roadWidth / 2, tileSize, roadWidth);
+        }
+      });
+    }
 
     function drawMap() {
       const cols = Math.ceil(canvas.width / tileSize) + 2;
