@@ -57,9 +57,9 @@
 
     function placeStructure(biome, x, y) {
       const seed = Math.random();
-      if (biome === 'forest' && seed < 0.2) return 'tree';
-      if (biome === 'suburban' && seed < 0.4) return 'house';
-      if (biome === 'city' && seed < 0.5) return 'building';
+      if (biome === 'forest') return seed < 0.5 ? 'tree' : null;
+      if (biome === 'suburban') return seed < 0.5 ? (seed < 0.25 ? 'house1x1' : 'house1x2') : null;
+      if (biome === 'city') return seed < 0.5 ? (seed < 0.25 ? 'building2x2' : 'building3x3') : null;
       return null;
     }
 
@@ -100,17 +100,16 @@
     }
 
     function ensureRoadConnectivity() {
-      // Connect all houses to roads logically
       for (const [key, structures] of Object.entries(gameState.structures)) {
-        if (structures === 'house' && !gameState.roads[key].length) {
-          gameState.roads[key].push('smallvertical');
+        if (structures && structures.startsWith('house') && !gameState.roads[key]?.length) {
+          gameState.roads[key] = ['smallvertical'];
         }
       }
     }
 
     function drawRoads(tileX, tileY, roads) {
       roads.forEach((type) => {
-        ctx.fillStyle = type.includes('Main') ? 'darkgray' : '#d3d3d3'; // Slightly different color for small roads
+        ctx.fillStyle = type.includes('Main') ? 'darkgray' : '#d3d3d3';
         const roadWidth = type.includes('Main') ? roadWidthMain : roadWidthSmall;
 
         if (type.includes('vertical')) {
@@ -119,6 +118,27 @@
           ctx.fillRect(tileX, tileY + tileSize / 2 - roadWidth / 2, tileSize, roadWidth);
         }
       });
+    }
+
+    function drawStructures(tileX, tileY, structure) {
+      if (structure === 'tree') {
+        ctx.fillStyle = 'darkgreen';
+        ctx.beginPath();
+        ctx.arc(tileX + tileSize / 2, tileY + tileSize / 2, tileSize / 6, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (structure === 'house1x1') {
+        ctx.fillStyle = 'brown';
+        ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
+      } else if (structure === 'house1x2') {
+        ctx.fillStyle = 'brown';
+        ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 3, tileSize / 2, tileSize / 3);
+      } else if (structure === 'building2x2') {
+        ctx.fillStyle = 'gray';
+        ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 4, tileSize / 2, tileSize / 2);
+      } else if (structure === 'building3x3') {
+        ctx.fillStyle = 'darkgray';
+        ctx.fillRect(tileX + tileSize / 6, tileY + tileSize / 6, tileSize * 2 / 3, tileSize * 2 / 3);
+      }
     }
 
     function drawMap() {
@@ -157,8 +177,7 @@
 
           const structure = gameState.structures[biomeKey];
           if (structure) {
-            ctx.fillStyle = structure === 'house' ? 'brown' : 'black';
-            ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
+            drawStructures(tileX, tileY, structure);
           }
         }
       }
