@@ -58,8 +58,12 @@
     function placeStructure(biome, x, y) {
       const seed = Math.random();
       if (biome === 'forest') return seed < 0.5 ? 'tree' : null;
-      if (biome === 'suburban') return seed < 0.5 ? (seed < 0.25 ? 'house1x1' : 'house1x2') : null;
-      if (biome === 'city') return seed < 0.5 ? (seed < 0.25 ? 'building2x2' : 'building3x3') : null;
+      if (biome === 'suburban') {
+        if (seed < 0.5) return seed < 0.25 ? 'house1x1' : 'house1x2';
+      }
+      if (biome === 'city') {
+        if (seed < 0.5) return seed < 0.25 ? 'building2x2' : 'building3x3';
+      }
       return null;
     }
 
@@ -235,20 +239,19 @@
       });
     }
 
-    function update() {
-      if (keys['ArrowUp']) gameState.mapOffset.y -= gameState.player.speed;
-      if (keys['ArrowDown']) gameState.mapOffset.y += gameState.player.speed;
-      if (keys['ArrowLeft']) gameState.mapOffset.x -= gameState.player.speed;
-      if (keys['ArrowRight']) gameState.mapOffset.x += gameState.player.speed;
-
-      updateNPCs();
+    function updatePlayer() {
+      if (keys['ArrowUp'] || keys['w']) gameState.mapOffset.y -= gameState.player.speed;
+      if (keys['ArrowDown'] || keys['s']) gameState.mapOffset.y += gameState.player.speed;
+      if (keys['ArrowLeft'] || keys['a']) gameState.mapOffset.x -= gameState.player.speed;
+      if (keys['ArrowRight'] || keys['d']) gameState.mapOffset.x += gameState.player.speed;
     }
 
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      update();
       drawMap();
       drawEntities();
+      updateNPCs();
+      updatePlayer();
       requestAnimationFrame(gameLoop);
     }
 
