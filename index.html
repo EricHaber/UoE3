@@ -77,18 +77,31 @@
         gameState.npcs.push(npc);
       }
     }
-
+    
     function placeRoads(x, y, biome) {
-      const key = `${x},${y}`;
-      if (!gameState.roads[key]) gameState.roads[key] = [];
-
+      if (!gameState.roads[`${x},${y}`]) gameState.roads[`${x},${y}`] = [];
+    
       if (biome === 'city') {
-        if (x % 3 === 0) gameState.roads[key].push('verticalMain');
-        if (y % 3 === 0) gameState.roads[key].push('horizontalMain');
+        if (x % 3 === 0) gameState.roads[`${x},${y}`].push('verticalMain');
+        if (y % 3 === 0) gameState.roads[`${x},${y}`].push('horizontalMain');
       } else if (biome === 'suburban') {
-        if (Math.random() < 0.5) gameState.roads[key].push('smallvertical');
-      } else if (biome === 'forest' && Math.random() < 0.1) {
-        gameState.roads[key].push('smallhorizontal');
+        if (Math.random() < 0.5) {
+          gameState.roads[`${x},${y}`].push('smallvertical');
+          console.log(`Small vertical road added at (${x}, ${y})`);
+        }
+        if (Math.random() < 0.5) {
+          gameState.roads[`${x},${y}`].push('smallhorizontal');
+          console.log(`Small horizontal road added at (${x}, ${y})`);
+        }
+      } else if (biome === 'forest') {
+        if (Math.random() < 0.2) {
+          gameState.roads[`${x},${y}`].push('smallvertical');
+          console.log(`Small vertical road added at (${x}, ${y})`);
+        }
+        if (Math.random() < 0.2) {
+          gameState.roads[`${x},${y}`].push('smallhorizontal');
+          console.log(`Small horizontal road added at (${x}, ${y})`);
+        }
       }
     }
 
