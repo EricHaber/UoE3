@@ -86,20 +86,20 @@
         if (y % 3 === 0) gameState.roads[`${x},${y}`].push('horizontalMain');
       } else if (biome === 'suburban') {
         if (Math.random() < 0.5) {
-          gameState.roads[`${x},${y}`].push('smallVertical');
+          gameState.roads[`${x},${y}`].push('verticalSmall');
           console.log(`Small vertical road added at (${x}, ${y})`);
         }
         if (Math.random() < 0.5) {
-          gameState.roads[`${x},${y}`].push('smallHorizontal');
+          gameState.roads[`${x},${y}`].push('horizontalSmall');
           console.log(`Small horizontal road added at (${x}, ${y})`);
         }
       } else if (biome === 'forest') {
         if (Math.random() < 0.2) {
-          gameState.roads[`${x},${y}`].push('smallVertical');
+          gameState.roads[`${x},${y}`].push('verticalSmall');
           console.log(`Small vertical road added at (${x}, ${y})`);
         }
         if (Math.random() < 0.2) {
-          gameState.roads[`${x},${y}`].push('smallHorizontal');
+          gameState.roads[`${x},${y}`].push('horizontalSmall');
           console.log(`Small horizontal road added at (${x}, ${y})`);
         }
       }
