@@ -26,7 +26,7 @@
     document.body.appendChild(canvas);
 
     const simplex = new SimplexNoise();
-    const tileSize = 400;
+    const tileSize = 133;  // Make the chunks 3 times smaller
     const roadWidthMain = 40;
     const roadWidthSmall = 10;
 
@@ -59,10 +59,10 @@
       const seed = Math.random();
       if (biome === 'forest') return seed < 0.5 ? 'tree' : null;
       if (biome === 'suburban') {
-        if (seed < 0.5) return seed < 0.25 ? 'house1x1' : 'house1x2';
+        if (seed < 0.5) return seed < 0.25 ? 'house1x1' : 'house2x1'; // Change to house2x1
       }
       if (biome === 'city') {
-        if (seed < 0.5) return seed < 0.25 ? 'building2x2' : 'building3x3';
+        if (seed < 0.5) return seed < 0.25 ? 'building2x2' : 'building3x3'; // Ensure 2x2 or 3x3 buildings
       }
       return null;
     }
@@ -133,13 +133,13 @@
       } else if (structure === 'house1x1') {
         ctx.fillStyle = 'brown';
         ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
-      } else if (structure === 'house1x2') {
+      } else if (structure === 'house2x1') { // Adjust for 2x1 house
         ctx.fillStyle = 'brown';
-        ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 3, tileSize / 2, tileSize / 3);
-      } else if (structure === 'building2x2') {
+        ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 3, tileSize / 2, tileSize / 2); // Use 2x1 size
+      } else if (structure === 'building2x2') { // Adjust for 2x2 building
         ctx.fillStyle = 'gray';
         ctx.fillRect(tileX + tileSize / 4, tileY + tileSize / 4, tileSize / 2, tileSize / 2);
-      } else if (structure === 'building3x3') {
+      } else if (structure === 'building3x3') { // Adjust for 3x3 building
         ctx.fillStyle = 'darkgray';
         ctx.fillRect(tileX + tileSize / 6, tileY + tileSize / 6, tileSize * 2 / 3, tileSize * 2 / 3);
       }
