@@ -1,313 +1,209 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>  
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dynamic World</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background-color: #f0f0f0;
-    }
-    canvas {
-      display: block;
-      margin: 0 auto;
-    }
-  </style>
+<title>GTA1-like Game</title>
+<script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+}
+canvas {
+  display: block;
+}
+</style>
 </head>
 <body>
-  <script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
-  <script type="module">
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 800;
-    canvas.height = 600;
-    document.body.appendChild(canvas);
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const mapWidth = 2000;
+const mapHeight = 1000;
+const tileSize = 5;
+const playerSize = 8;
+const noiseScale = 0.02;
+const noiseScale2 = 0.05;
+canvas.width = mapWidth;
+canvas.height = mapHeight;
 
-    const simplex = new SimplexNoise();
-    const tileSize = 133;  // Make the chunks 3 times smaller
-    const roadWidthMain = 40;
-    const roadWidthSmall = 10;
+const viewWidth = canvas.width;
+const viewHeight = canvas.height;
+const simplex = new SimplexNoise();
 
-    const gameState = {
-      player: { x: 400, y: 300, width: 20, height: 20, color: 'blue', speed: 4 },
-      mapOffset: { x: 0, y: 0 },
-      biomes: {},
-      structures: {},
-      roads: {},
-      npcs: [],
-    };
+const player = {
+  x: mapWidth / 2,
+  y: mapHeight / 2,
+  speed: 2,
+};
 
-    const keys = {};
-    document.addEventListener('keydown', (e) => (keys[e.key] = true));
-    document.addEventListener('keyup', (e) => (keys[e.key] = false));
+const keys = {
+  ArrowUp: false,
+  ArrowDown: false,
+  ArrowLeft: false,
+  ArrowRight: false,
+};
 
-    function generateBiome(x, y) {
-      const scale = 0.01;
-      const noiseValue = simplex.noise2D(x * scale, y * scale);
-      if (noiseValue < -0.3) return 'forest';
-      if (noiseValue < 0.3) return 'suburban';
-      return 'city';
-    }
+document.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+});
 
-    function getBiomeColor(biome) {
-      return { forest: 'green', suburban: 'lightgreen', city: 'beige' }[biome] || 'black';
-    }
+document.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+});
 
-    function isTileOccupied(x, y, width, height) {
-      for (let i = 0; i < width; i++) {
-        for (let j = 0; j < height; j++) {
-          const key = `${x + i},${y + j}`;
-          if (gameState.structures[key]) {
-            return true; // Tile is occupied
-          }
-        }
+function generateMap() {
+  const mapData = [];
+  for (let y = 0; y < mapHeight / tileSize; y+=0.25) {
+    const row = [];
+    for (let x = 0; x < mapWidth / tileSize; x+=0.25) {
+      const noiseValue1 = simplex.noise2D(x * noiseScale, y * noiseScale);
+      const noiseValue2 = simplex.noise2D(x * noiseScale2, y * noiseScale2) * 0.5;
+      const combinedNoise = noiseValue1 + noiseValue2;
+
+      let biome = 'grassland';
+      if (combinedNoise < -0.5) {
+        biome = 'water';
+      } else if (combinedNoise < -0.1) {
+        biome = 'suburbs';
+      } else if (combinedNoise > 0.9) {
+        biome = 'city';
+      } else if (combinedNoise > 0.4) {
+        biome = 'suburbs';
       }
-      return false; // All tiles are free
-    }
-
-    
-    function placeStructure(biome, x, y) {
-      const seed = Math.random();
-      let structure = null;
-      let width = 1;
-      let height = 1;
-    
-      // Select the building based on the biome and random seed
-      if (biome === 'forest') return seed < 0.5 ? 'tree' : null;
-      if (biome === 'suburban') {
-        if (seed < 0.5) structure = 'house1x1'; 
-        else structure = 'house1x2', width = 2, height = 1; // Adjust width and height for 1x2 house
-      }
-      if (biome === 'city') {
-        if (seed < 0.5) structure = 'building2x2', width = 2, height = 2;
-        else structure = 'building3x3', width = 3, height = 3;
-      }
-    
-      // Check if the area is free (make sure no overlapping structures)
-      if (!isTileOccupied(x, y, width, height)) {
-        // Mark the area as occupied
-        for (let i = 0; i < width; i++) {
-          for (let j = 0; j < height; j++) {
-            const key = `${x + i},${y + j}`;
-            gameState.structures[key] = structure;
-          }
-        }
-        // Draw the structure
-        drawStructures(x * tileSize, y * tileSize, structure, width, height);
-        return structure;
-      }
-      return null; // No space available
-    }
-
-
-
-    function spawnNPCs(biome, x, y) {
-      const density = biome === 'city' ? 5 : biome === 'forest' ? 0.1 : 1;
-      const npcCount = Math.floor(Math.random() * density);
-      for (let i = 0; i < npcCount; i++) {
-        const npc = {
-          x: x * tileSize + Math.random() * tileSize,
-          y: y * tileSize + Math.random() * tileSize,
-          destination: null,
-          speed: (biome === 'city' ? 1.5 : 0.5) + Math.random() * 0.5,
-          pause: 0,
-        };
-        gameState.npcs.push(npc);
-      }
-    }
-
-    function generateRoadNetwork(x, y, biome) {
-      const roads = [];
-      if (biome === 'city') {
-        roads.push('verticalMain', 'horizontalMain');
-      } else if (biome === 'suburban') {
-        if (Math.random() < 0.7) roads.push('smallvertical');
-        if (Math.random() < 0.7) roads.push('smallhorizontal');
-      } else if (biome === 'forest') {
-        if (Math.random() < 0.2) roads.push('smallvertical');
-        if (Math.random() < 0.2) roads.push('smallhorizontal');
-      }
-      return roads;
-    }
-
-    function placeRoads(x, y, biome) {
-      const key = `${x},${y}`;
-      if (!gameState.roads[key]) {
-        gameState.roads[key] = generateRoadNetwork(x, y, biome);
-      }
-    }
-
-    function ensureRoadConnectivity() {
-      for (const [key, structures] of Object.entries(gameState.structures)) {
-        if (structures && structures.startsWith('house') && !gameState.roads[key]?.length) {
-          gameState.roads[key] = ['smallvertical'];
-        }
-      }
-    }
-
-    function drawRoads(tileX, tileY, roads) {
-      roads.forEach((type) => {
-        ctx.fillStyle = type.includes('Main') ? 'darkgray' : '#d3d3d3';
-        const roadWidth = type.includes('Main') ? roadWidthMain : roadWidthSmall;
-
-        if (type.includes('vertical')) {
-          ctx.fillRect(tileX + tileSize - roadWidth / 2, tileY, roadWidth, tileSize);
-        } else if (type.includes('horizontal')) {
-          ctx.fillRect(tileX, tileY + tileSize - roadWidth / 2, tileSize, roadWidth);
-        }
+      
+      row.push({
+        noise: combinedNoise,
+        biome: biome,
       });
     }
+    mapData.push(row);
+  }
+  return mapData;
+}
 
-    function drawStructures(tileX, tileY, structure, width, height) {
-      // Draw tree (1x1)
-      if (structure === 'tree') {
-        ctx.fillStyle = 'darkgreen';
-        ctx.beginPath();
-        ctx.arc(tileX + tileSize / 2, tileY + tileSize / 2, tileSize / 6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // Draw 1x1 house
-      else if (structure === 'house1x1') {
-        ctx.fillStyle = 'brown';
-        ctx.fillRect(tileX + tileSize / 3, tileY + tileSize / 3, tileSize / 3, tileSize / 3);
-      }
-      // Draw 1x2 house (spans across 2 tiles horizontally)
-      else if (structure === 'house1x2') {
-        ctx.fillStyle = 'brown';
-        ctx.fillRect(tileX, tileY + tileSize / 3, tileSize * 2 , tileSize / 3);
-      }
-      // Draw 2x2 building (spans across 4 tiles)
-      else if (structure === 'building2x2') {
-        ctx.fillStyle = 'gray';
-        // Adjust the size of the 2x2 building (span across 2x2 tiles)
-        ctx.fillRect(tileX, tileY, tileSize * 2, tileSize * 2);
-      }
-      // Draw 3x3 building (spans across 9 tiles)
-      else if (structure === 'building3x3') {
-        ctx.fillStyle = 'darkgray';
-        // Adjust the size of the 3x3 building (span across 3x3 tiles)
-        ctx.fillRect(tileX, tileY, tileSize * 3, tileSize * 3);
-      }
-    }
+const map = generateMap();
 
+function isCityRoad(x, y) {
+  const cycle = 13; // Alternating pattern cycle
+  const xMod = x % cycle;
+  const yMod = y % cycle;
+  
+  // Check for 2-tile and 1-tile roads
+  const isXRoad = (xMod < 2) || (xMod >= 7 && xMod < 8);
+  const isYRoad = (yMod < 2) || (yMod >= 7 && yMod < 8);
+  
+  return isXRoad || isYRoad;
+}
 
+function isSuburbRoad(x, y) {
+  // Branching pattern with main roads and smaller branches
+  const mainCycle = 15;
+  const branchCycle = 3;
+  const branchLength = 15;
+  
 
+  const mainRoad = (x % mainCycle === 0) || (y % mainCycle === 0);
+  const branchRoad = (x % branchCycle === 0 && y % mainCycle < branchLength)
+  
+  return mainRoad || branchRoad;
+}
 
+function isConnectingRoad(x, y) {
+  // Connect city center to map edges
+  const centerX = Math.floor(mapWidth / tileSize / 2);
+  const centerY = Math.floor(mapHeight / tileSize / 2);
+  const thickness = 2;
+  return false;
 
-    function drawMap() {
-      const cols = Math.ceil(canvas.width / tileSize) + 2;
-      const rows = Math.ceil(canvas.height / tileSize) + 2;
+  // Check vertical highway
+  if (Math.abs(x - centerX) <= thickness && (y % 50 < 40)) return true;
+  
+  // Check horizontal highway
+  if (Math.abs(y - centerY) <= thickness && (x % 50 < 40)) return true;
+  
+  // Check diagonal connections
+  if (Math.abs((x - centerX) - (y - centerY)) <= thickness && x > centerX) return true;
+  if (Math.abs((x - centerX) + (y - centerY)) <= thickness && x > centerX) return true;
 
-      for (let row = -1; row < rows; row++) {
-        for (let col = -1; col < cols; col++) {
-          const tileX = col * tileSize - (gameState.mapOffset.x % tileSize);
-          const tileY = row * tileSize - (gameState.mapOffset.y % tileSize);
+  return false;
+}
 
-          const biomeX = Math.floor((gameState.mapOffset.x + col * tileSize) / tileSize);
-          const biomeY = Math.floor((gameState.mapOffset.y + row * tileSize) / tileSize);
-          const biomeKey = `${biomeX},${biomeY}`;
+function drawMap() {
+  for (let y = 0; y < viewHeight / tileSize; y++) {
+    for (let x = 0; x < viewWidth / tileSize; x++) {
+      const mapX = x + Math.floor(player.x / tileSize) - Math.floor(viewWidth / tileSize / 2);
+      const mapY = y + Math.floor(player.y / tileSize) - Math.floor(viewHeight / tileSize / 2);
+      const worldTileX = Math.floor((player.x - viewWidth/2 + x * tileSize) / tileSize);
+      const worldTileY = Math.floor((player.y - viewHeight/2 + y * tileSize) / tileSize);
 
-          if (!gameState.biomes[biomeKey]) {
-            const biome = generateBiome(biomeX, biomeY);
-            gameState.biomes[biomeKey] = biome;
-            spawnNPCs(biome, biomeX, biomeY);
-          }
-
-          const biome = gameState.biomes[biomeKey];
-          ctx.fillStyle = getBiomeColor(biome);
-          ctx.fillRect(tileX, tileY, tileSize, tileSize);
-
-          if (!gameState.roads[biomeKey]) {
-            placeRoads(biomeX, biomeY, biome);
-          }
-
-          drawRoads(tileX, tileY, gameState.roads[biomeKey] || []);
-
-          if (!gameState.structures[biomeKey]) {
-            const structure = placeStructure(biome, biomeX, biomeY);
-            gameState.structures[biomeKey] = structure;
-          }
-
-          const structure = gameState.structures[biomeKey];
-          if (structure) {
-            drawStructures(tileX, tileY, structure);
-          }
-        }
-      }
-      ensureRoadConnectivity();
-    }
-
-    function drawEntities() {
-      ctx.fillStyle = gameState.player.color;
-      ctx.fillRect(
-        gameState.player.x - gameState.player.width / 2,
-        gameState.player.y - gameState.player.height / 2,
-        gameState.player.width,
-        gameState.player.height
-      );
-
-      gameState.npcs.forEach((npc) => {
-        ctx.fillStyle = 'red';
-        ctx.beginPath();
-        ctx.arc(
-          npc.x - gameState.mapOffset.x,
-          npc.y - gameState.mapOffset.y,
-          5,
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
-      });
-    }
-
-    function updateNPCs() {
-      gameState.npcs.forEach((npc) => {
-        if (npc.pause > 0) {
-          npc.pause -= 1;
-          return;
+      if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
+        const tile = map[mapY][mapX];
+        let color;
+        switch (tile.biome) {
+          case 'water':
+            color = '#4287f5';
+            break;
+          case 'city':
+            color = '#4a4a4a';
+            break;
+          case 'suburbs':
+            color = '#f0f0d8';
+            break;
+          default:
+            color = '#85c285';
         }
 
-        if (!npc.destination) {
-          npc.destination = {
-            x: npc.x + (Math.random() - 0.5) * tileSize,
-            y: npc.y + (Math.random() - 0.5) * tileSize,
-          };
+        // Check roads
+        let isRoad = false;
+        if (tile.biome === 'city') {
+          isRoad = isCityRoad(worldTileX, worldTileY);
+        } else if (tile.biome === 'suburbs') {
+          isRoad = isSuburbRoad(worldTileX, worldTileY);
         }
-
-        const dx = npc.destination.x - npc.x;
-        const dy = npc.destination.y - npc.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
         
-        if (distance < 5) {
-          npc.destination = null;
-          npc.pause = Math.random() * 100;
-        } else {
-          npc.x += (dx / distance) * npc.speed;
-          npc.y += (dy / distance) * npc.speed;
+        // Connecting roads override all biomes
+        isRoad = isRoad || isConnectingRoad(worldTileX, worldTileY);
+
+        if (isRoad) {
+          color = '#333333';
         }
-      });
-    }
 
-    function updatePlayer() {
-      if (keys['ArrowUp'] || keys['w']) gameState.mapOffset.y -= gameState.player.speed;
-      if (keys['ArrowDown'] || keys['s']) gameState.mapOffset.y += gameState.player.speed;
-      if (keys['ArrowLeft'] || keys['a']) gameState.mapOffset.x -= gameState.player.speed;
-      if (keys['ArrowRight'] || keys['d']) gameState.mapOffset.x += gameState.player.speed;
+        ctx.fillStyle = color;
+        ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+      }
     }
+  }
+}
 
-    function gameLoop() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawMap();
-      drawEntities();
-      updateNPCs();
-      updatePlayer();
-      requestAnimationFrame(gameLoop);
-    }
+function gameLoop() {
+  // Handle player movement
+  if (keys.ArrowUp) player.y -= player.speed;
+  if (keys.ArrowDown) player.y += player.speed;
+  if (keys.ArrowLeft) player.x -= player.speed;
+  if (keys.ArrowRight) player.x += player.speed;
 
-    gameLoop();
-  </script>
+  // Keep player within bounds
+  player.x = Math.max(playerSize, Math.min(mapWidth - playerSize, player.x));
+  player.y = Math.max(playerSize, Math.min(mapHeight - playerSize, player.y));
+
+  // Draw everything
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawMap();
+  
+  // Draw player
+  ctx.fillStyle = '#ff0000';
+  ctx.fillRect(
+    viewWidth/2 - playerSize/2,
+    viewHeight/2 - playerSize/2,
+    playerSize,
+    playerSize
+  );
+
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
 </body>
 </html>
