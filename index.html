@@ -20,7 +20,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const mapWidth = 2000;
 const mapHeight = 1000;
-const tileSize = 20; // Increased tile size for zoom effect
+const tileSize = 5; // Increased tile size for zoom effect
 const playerSize = 10;
 const noiseScale = 0.02;
 const noiseScale2 = 0.05;
@@ -77,9 +77,9 @@ function loadTextures(callback) {
 
 function generateMap() {
   const mapData = [];
-  for (let y = 0; y < mapHeight / tileSize; y++) {
+  for (let y = 0; y < mapHeight / tileSize; y+=0.25) {
     const row = [];
-    for (let x = 0; x < mapWidth / tileSize; x++) {
+    for (let x = 0; x < mapWidth / tileSize; x+=0.25) {
       const noiseValue1 = simplex.noise2D(x * noiseScale, y * noiseScale);
       const noiseValue2 = simplex.noise2D(x * noiseScale2, y * noiseScale2) * 0.5;
       const combinedNoise = noiseValue1 + noiseValue2;
