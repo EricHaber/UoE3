@@ -128,13 +128,23 @@ function isSuburbRoad(x, y) {
 
 // Draw the map
 function drawMap() {
-  const viewWidth = canvas.width / tileSize;
-  const viewHeight = canvas.height / tileSize;
+  const viewWidth = Math.ceil(canvas.width / tileSize);
+  const viewHeight = Math.ceil(canvas.height / tileSize);
 
-  for (let y = 0; y < viewHeight; y++) {
-    for (let x = 0; x < viewWidth; x++) {
-      const mapX = x + Math.floor(player.x / tileSize) - Math.floor(viewWidth / 2);
-      const mapY = y + Math.floor(player.y / tileSize) - Math.floor(viewHeight / 2);
+  // Calculate top-left corner of the visible map in tiles
+  const offsetX = player.x - canvas.width / 2;
+  const offsetY = player.y - canvas.height / 2;
+
+  const startTileX = Math.floor(offsetX / tileSize);
+  const startTileY = Math.floor(offsetY / tileSize);
+
+  const tileOffsetX = offsetX % tileSize;
+  const tileOffsetY = offsetY % tileSize;
+
+  for (let y = 0; y <= viewHeight; y++) {
+    for (let x = 0; x <= viewWidth; x++) {
+      const mapX = startTileX + x;
+      const mapY = startTileY + y;
 
       if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
         const tile = map[mapY][mapX];
@@ -154,7 +164,13 @@ function drawMap() {
           texture = textures.road;
         }
 
-        ctx.drawImage(texture, x * tileSize, y * tileSize, tileSize, tileSize);
+        ctx.drawImage(
+          texture,
+          x * tileSize - tileOffsetX,
+          y * tileSize - tileOffsetY,
+          tileSize,
+          tileSize
+        );
       }
     }
   }
