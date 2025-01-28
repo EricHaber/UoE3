@@ -20,20 +20,18 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const mapWidth = 2000;
 const mapHeight = 1000;
-const tileSize = 5;
-const playerSize = 8;
+const tileSize = 20; // Increased tile size for zoom effect
+const playerSize = 10;
 const noiseScale = 0.02;
 const noiseScale2 = 0.05;
-canvas.width = mapWidth;
-canvas.height = mapHeight;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-const viewWidth = canvas.width;
-const viewHeight = canvas.height;
 const simplex = new SimplexNoise();
 
 const player = {
-  x: mapWidth / 2,
-  y: mapHeight / 2,
+  x: 0,
+  y: 0,
   speed: 2,
 };
 
@@ -52,11 +50,36 @@ document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
 });
 
+const textures = {};
+const textureSources = {
+  water: 'water.png',
+  city: 'city.png',
+  suburbs: 'suburbs.png',
+  grassland: 'grassland.png',
+  road: 'road.png'
+};
+
+function loadTextures(callback) {
+  let loaded = 0;
+  const keys = Object.keys(textureSources);
+  keys.forEach((key) => {
+    const img = new Image();
+    img.src = textureSources[key];
+    img.onload = () => {
+      textures[key] = img;
+      loaded++;
+      if (loaded === keys.length) {
+        callback();
+      }
+    };
+  });
+}
+
 function generateMap() {
   const mapData = [];
-  for (let y = 0; y < mapHeight / tileSize; y+=0.25) {
+  for (let y = 0; y < mapHeight / tileSize; y++) {
     const row = [];
-    for (let x = 0; x < mapWidth / tileSize; x+=0.25) {
+    for (let x = 0; x < mapWidth / tileSize; x++) {
       const noiseValue1 = simplex.noise2D(x * noiseScale, y * noiseScale);
       const noiseValue2 = simplex.noise2D(x * noiseScale2, y * noiseScale2) * 0.5;
       const combinedNoise = noiseValue1 + noiseValue2;
@@ -71,7 +94,7 @@ function generateMap() {
       } else if (combinedNoise > 0.4) {
         biome = 'suburbs';
       }
-      
+
       row.push({
         noise: combinedNoise,
         biome: biome,
@@ -79,98 +102,41 @@ function generateMap() {
     }
     mapData.push(row);
   }
+
+  // Find a city tile for the player to spawn
+  for (let y = 0; y < mapData.length; y++) {
+    for (let x = 0; x < mapData[y].length; x++) {
+      if (mapData[y][x].biome === 'city') {
+        player.x = x * tileSize;
+        player.y = y * tileSize;
+        return mapData;
+      }
+    }
+  }
+
   return mapData;
 }
 
 const map = generateMap();
 
-function isCityRoad(x, y) {
-  const cycle = 13; // Alternating pattern cycle
-  const xMod = x % cycle;
-  const yMod = y % cycle;
-  
-  // Check for 2-tile and 1-tile roads
-  const isXRoad = (xMod < 2) || (xMod >= 7 && xMod < 8);
-  const isYRoad = (yMod < 2) || (yMod >= 7 && yMod < 8);
-  
-  return isXRoad || isYRoad;
-}
-
-function isSuburbRoad(x, y) {
-  // Branching pattern with main roads and smaller branches
-  const mainCycle = 15;
-  const branchCycle = 3;
-  const branchLength = 15;
-  
-
-  const mainRoad = (x % mainCycle === 0) || (y % mainCycle === 0);
-  const branchRoad = (x % branchCycle === 0 && y % mainCycle < branchLength)
-  
-  return mainRoad || branchRoad;
-}
-
-function isConnectingRoad(x, y) {
-  // Connect city center to map edges
-  const centerX = Math.floor(mapWidth / tileSize / 2);
-  const centerY = Math.floor(mapHeight / tileSize / 2);
-  const thickness = 2;
-  return false;
-
-  // Check vertical highway
-  if (Math.abs(x - centerX) <= thickness && (y % 50 < 40)) return true;
-  
-  // Check horizontal highway
-  if (Math.abs(y - centerY) <= thickness && (x % 50 < 40)) return true;
-  
-  // Check diagonal connections
-  if (Math.abs((x - centerX) - (y - centerY)) <= thickness && x > centerX) return true;
-  if (Math.abs((x - centerX) + (y - centerY)) <= thickness && x > centerX) return true;
-
-  return false;
-}
-
 function drawMap() {
-  for (let y = 0; y < viewHeight / tileSize; y++) {
-    for (let x = 0; x < viewWidth / tileSize; x++) {
-      const mapX = x + Math.floor(player.x / tileSize) - Math.floor(viewWidth / tileSize / 2);
-      const mapY = y + Math.floor(player.y / tileSize) - Math.floor(viewHeight / tileSize / 2);
-      const worldTileX = Math.floor((player.x - viewWidth/2 + x * tileSize) / tileSize);
-      const worldTileY = Math.floor((player.y - viewHeight/2 + y * tileSize) / tileSize);
+  const viewWidth = canvas.width / tileSize;
+  const viewHeight = canvas.height / tileSize;
+
+  for (let y = 0; y < viewHeight; y++) {
+    for (let x = 0; x < viewWidth; x++) {
+      const mapX = x + Math.floor(player.x / tileSize) - Math.floor(viewWidth / 2);
+      const mapY = y + Math.floor(player.y / tileSize) - Math.floor(viewHeight / 2);
 
       if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
         const tile = map[mapY][mapX];
-        let color;
-        switch (tile.biome) {
-          case 'water':
-            color = '#4287f5';
-            break;
-          case 'city':
-            color = '#4a4a4a';
-            break;
-          case 'suburbs':
-            color = '#f0f0d8';
-            break;
-          default:
-            color = '#85c285';
-        }
+        const texture = textures[tile.biome] || textures.grassland;
+        ctx.drawImage(texture, x * tileSize, y * tileSize, tileSize, tileSize);
 
-        // Check roads
-        let isRoad = false;
-        if (tile.biome === 'city') {
-          isRoad = isCityRoad(worldTileX, worldTileY);
-        } else if (tile.biome === 'suburbs') {
-          isRoad = isSuburbRoad(worldTileX, worldTileY);
+        // Draw roads if applicable
+        if (tile.biome === 'city' || tile.biome === 'suburbs') {
+          ctx.drawImage(textures.road, x * tileSize, y * tileSize, tileSize, tileSize);
         }
-        
-        // Connecting roads override all biomes
-        isRoad = isRoad || isConnectingRoad(worldTileX, worldTileY);
-
-        if (isRoad) {
-          color = '#333333';
-        }
-
-        ctx.fillStyle = color;
-        ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
       }
     }
   }
@@ -190,12 +156,12 @@ function gameLoop() {
   // Draw everything
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawMap();
-  
+
   // Draw player
   ctx.fillStyle = '#ff0000';
   ctx.fillRect(
-    viewWidth/2 - playerSize/2,
-    viewHeight/2 - playerSize/2,
+    canvas.width / 2 - playerSize / 2,
+    canvas.height / 2 - playerSize / 2,
     playerSize,
     playerSize
   );
@@ -203,7 +169,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-gameLoop();
+loadTextures(gameLoop);
 </script>
 </body>
 </html>
