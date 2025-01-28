@@ -1,17 +1,17 @@
-<!DOCTYPE html>  
+<!DOCTYPE html>
 <html>
 <head>
-<title>GTA1-like Game</title>
-<script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
-<style>
-body {
-  margin: 0;
-  overflow: hidden;
-}
-canvas {
-  display: block;
-}
-</style>
+  <title>GTA1-like Game</title>
+  <script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
@@ -20,12 +20,13 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const mapWidth = 2000;
 const mapHeight = 1000;
-const tileSize = 100; // Increased tile size for zoom effect
-const playerSize = 10;
+const tileSize = 32; // Adjusted for zoom
+const playerSize = 16;
 const noiseScale = 0.02;
 const noiseScale2 = 0.05;
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+
+canvas.width = 800; // Fixed viewport size
+canvas.height = 600;
 
 const simplex = new SimplexNoise();
 
@@ -50,36 +51,28 @@ document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
 });
 
-const textures = {};
-const textureSources = {
-  water: 'water.png',
-  city: 'city.png',
-  suburbs: 'suburbs.png',
-  grassland: 'grassland.png',
-  road: 'road.png'
+// Textures
+const textures = {
+  water: new Image(),
+  city: new Image(),
+  suburbs: new Image(),
+  grassland: new Image(),
+  road: new Image(),
 };
 
-function loadTextures(callback) {
-  let loaded = 0;
-  const keys = Object.keys(textureSources);
-  keys.forEach((key) => {
-    const img = new Image();
-    img.src = textureSources[key];
-    img.onload = () => {
-      textures[key] = img;
-      loaded++;
-      if (loaded === keys.length) {
-        callback();
-      }
-    };
-  });
-}
+// Load textures
+textures.water.src = 'water.png';
+textures.city.src = 'city.png';
+textures.suburbs.src = 'suburbs.png';
+textures.grassland.src = 'grassland.png';
+textures.road.src = 'road.png';
 
+// Generate the map
 function generateMap() {
   const mapData = [];
-  for (let y = 0; y < mapHeight / tileSize; y+=0.25) {
+  for (let y = 0; y < mapHeight / tileSize; y++) {
     const row = [];
-    for (let x = 0; x < mapWidth / tileSize; x+=0.25) {
+    for (let x = 0; x < mapWidth / tileSize; x++) {
       const noiseValue1 = simplex.noise2D(x * noiseScale, y * noiseScale);
       const noiseValue2 = simplex.noise2D(x * noiseScale2, y * noiseScale2) * 0.5;
       const combinedNoise = noiseValue1 + noiseValue2;
@@ -103,7 +96,7 @@ function generateMap() {
     mapData.push(row);
   }
 
-  // Find a city tile for the player to spawn
+  // Set player to spawn in a city
   for (let y = 0; y < mapData.length; y++) {
     for (let x = 0; x < mapData[y].length; x++) {
       if (mapData[y][x].biome === 'city') {
@@ -119,6 +112,21 @@ function generateMap() {
 
 const map = generateMap();
 
+// Road logic
+function isCityRoad(x, y) {
+  const cycle = 13;
+  const xMod = x % cycle;
+  const yMod = y % cycle;
+  return (xMod < 2) || (yMod < 2);
+}
+
+function isSuburbRoad(x, y) {
+  const mainCycle = 15;
+  const branchCycle = 3;
+  return (x % mainCycle === 0) || (y % branchCycle === 0);
+}
+
+// Draw the map
 function drawMap() {
   const viewWidth = canvas.width / tileSize;
   const viewHeight = canvas.height / tileSize;
@@ -130,28 +138,39 @@ function drawMap() {
 
       if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
         const tile = map[mapY][mapX];
-        const texture = textures[tile.biome] || textures.grassland;
-        ctx.drawImage(texture, x * tileSize, y * tileSize, tileSize, tileSize);
+        const worldTileX = mapX;
+        const worldTileY = mapY;
 
-        // Draw roads if applicable
-        if (tile.biome === 'city' || tile.biome === 'suburbs') {
-          ctx.drawImage(textures.road, x * tileSize, y * tileSize, tileSize, tileSize);
+        let texture = textures[tile.biome] || textures.grassland;
+
+        let isRoad = false;
+        if (tile.biome === 'city') {
+          isRoad = isCityRoad(worldTileX, worldTileY);
+        } else if (tile.biome === 'suburbs') {
+          isRoad = isSuburbRoad(worldTileX, worldTileY);
         }
+
+        if (isRoad) {
+          texture = textures.road;
+        }
+
+        ctx.drawImage(texture, x * tileSize, y * tileSize, tileSize, tileSize);
       }
     }
   }
 }
 
+// Game loop
 function gameLoop() {
-  // Handle player movement
+  // Player movement
   if (keys.ArrowUp) player.y -= player.speed;
   if (keys.ArrowDown) player.y += player.speed;
   if (keys.ArrowLeft) player.x -= player.speed;
   if (keys.ArrowRight) player.x += player.speed;
 
   // Keep player within bounds
-  player.x = Math.max(playerSize, Math.min(mapWidth - playerSize, player.x));
-  player.y = Math.max(playerSize, Math.min(mapHeight - playerSize, player.y));
+  player.x = Math.max(0, Math.min(mapWidth - tileSize, player.x));
+  player.y = Math.max(0, Math.min(mapHeight - tileSize, player.y));
 
   // Draw everything
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -169,7 +188,11 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-loadTextures(gameLoop);
+// Start the game loop after textures load
+const allTextures = Object.values(textures);
+Promise.all(allTextures.map((img) => new Promise((resolve) => (img.onload = resolve)))).then(() => {
+  gameLoop();
+});
 </script>
 </body>
 </html>
