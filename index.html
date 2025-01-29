@@ -1,20 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>GTA1-like Game</title>
+  <title>GTA-like Game</title>
   <script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+    #phoneMenu {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 300px;
+      height: 500px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      display: none;
+      padding: 20px;
+      border-radius: 10px;
     }
-    canvas {
-      display: block;
+    .menu-item { 
+      padding: 10px; 
+      margin: 5px;
+      background: #333;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
+  
+<div id="phoneMenu">
+  <h3>Phone</h3>
+  <div class="menu-item" onclick="spawnCar('sedan')">Spawn Sedan</div>
+  <div class="menu-item" onclick="spawnCar('sports')">Spawn Sports Car</div>
+  <div class="menu-item" onclick="spawnCar('truck')">Spawn Truck</div>
+</div>
+
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -24,7 +45,11 @@ const tileSize = 250; // Adjusted for zoom
 const playerSize = 16;
 const noiseScale = 0.02;
 const noiseScale2 = 0.05;
-
+const DIRECTION = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
+const cars = [];
+const traffic = [];
+const HOUSE_PROBABILITY = 0.3;
+  
 canvas.width = 1920; // Fixed viewport size
 canvas.height = 1080;
 
@@ -66,7 +91,40 @@ textures.city.src = 'city.png';
 textures.suburbs.src = 'suburbs.png';
 textures.grassland.src = 'grassland.png';
 textures.road.src = 'road.png';
+  
+class Tile {
+  constructor(biome, hasHouse = false, driveway = null) {
+    this.biome = biome;
+    this.hasHouse = hasHouse;
+    this.driveway = driveway;
+  }
+}
 
+class Car {
+  constructor(x, y, type, color) {
+    this.x = x;
+    this.y = y;
+    this.type = type;
+    this.color = color;
+    this.speed = type === 'truck' ? 1.5 : type === 'sports' ? 4 : 2;
+    this.direction = DIRECTION.RIGHT;
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.x, this.y, 30, 15);
+  }
+
+  update() {
+    // Simple traffic movement (needs pathfinding improvement)
+    switch(this.direction) {
+      case DIRECTION.RIGHT: this.x += this.speed; break;
+      case DIRECTION.LEFT: this.x -= this.speed; break;
+      case DIRECTION.UP: this.y -= this.speed; break;
+      case DIRECTION.DOWN: this.y += this.speed; break;
+    }
+  }
+}
 // Generate the map
 function generateMap() {
   const mapData = [];
@@ -88,14 +146,64 @@ function generateMap() {
         biome = 'suburbs';
       }
 
-      row.push({
-        noise: combinedNoise,
-        biome: biome,
-      });
+      let tile = new Tile(biome);
+      
+      if (biome === 'suburbs' && !isRoad && Math.random() < HOUSE_PROBABILITY) {
+        tile.hasHouse = true;
+        tile.driveway = determineDrivewayDirection(x, y, mapData);
+      }
+      
+      row.push(tile);
     }
     mapData.push(row);
   }
+  
+  return mapData;
+}
 
+function determineDrivewayDirection(x, y, mapData) {
+  // Check surrounding tiles for roads
+  const directions = [
+    { dx: 0, dy: -1, dir: DIRECTION.UP },
+    { dx: 1, dy: 0, dir: DIRECTION.RIGHT },
+    { dx: 0, dy: 1, dir: DIRECTION.DOWN },
+    { dx: -1, dy: 0, dir: DIRECTION.LEFT }
+  ];
+
+  for (let {dx, dy, dir} of directions) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx >= 0 && nx < mapWidth/tileSize && ny >= 0 && ny < mapHeight/tileSize) {
+      if (mapData[ny][nx].biome === 'road') {
+        return dir;
+      }
+    }
+  }
+  return DIRECTION.DOWN; // Default direction
+}
+
+
+function generateTraffic() {
+  setInterval(() => {
+    if (traffic.length < 20) { // Max 20 traffic cars
+      const spawnPoints = [];
+      for (let y = 0; y < map.length; y++) {
+        for (let x = 0; x < map[y].length; x++) {
+          if (map[y][x].biome === 'road') {
+            spawnPoints.push({x: x * tileSize, y: y * tileSize});
+          }
+        }
+      }
+      if (spawnPoints.length > 0) {
+        const {x, y} = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+        const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'];
+        traffic.push(new Car(x, y, 'traffic', colors[Math.floor(Math.random() * colors.length)]));
+      }
+    }
+  }, 3000);
+}
+
+  
   // Set player to spawn in a city
   for (let y = 0; y < mapData.length; y++) {
     for (let x = 0; x < mapData[y].length; x++) {
@@ -108,6 +216,21 @@ function generateMap() {
   }
 
   return mapData;
+}
+
+function toggleMenu() {
+  const menu = document.getElementById('phoneMenu');
+  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+function spawnCar(type) {
+  const colors = {
+    sedan: '#666666',
+    sports: '#FF3300',
+    truck: '#00AAFF'
+  };
+  cars.push(new Car(player.x, player.y, type, colors[type]));
+  toggleMenu();
 }
 
 const map = generateMap();
@@ -160,9 +283,33 @@ function drawMap() {
           isRoad = isSuburbRoad(worldTileX, worldTileY);
         }
 
-        if (isRoad) {
-          texture = textures.road;
+      if (isRoad) {
+        texture = textures.road;
+      } else if (tile.hasHouse) {
+        texture = textures.house;
+        // Draw driveway based on direction
+        ctx.save();
+        ctx.translate(x * tileSize - tileOffsetX, y * tileSize - tileOffsetY);
+        switch(tile.driveway) {
+          case DIRECTION.UP: 
+            ctx.translate(tileSize/2, 0);
+            ctx.rotate(-Math.PI/2);
+            break;
+          case DIRECTION.RIGHT:
+            // Default orientation
+            break;
+          case DIRECTION.DOWN:
+            ctx.translate(tileSize/2, tileSize);
+            ctx.rotate(Math.PI/2);
+            break;
+          case DIRECTION.LEFT:
+            ctx.translate(tileSize, tileSize/2);
+            ctx.rotate(Math.PI);
+            break;
         }
+    ctx.drawImage(textures.driveway, -tileSize/2, -tileSize/2, tileSize, tileSize);
+    ctx.restore();
+  }
 
         ctx.drawImage(
           texture,
@@ -183,6 +330,9 @@ function gameLoop() {
   if (keys.ArrowDown) player.y += player.speed;
   if (keys.ArrowLeft) player.x -= player.speed;
   if (keys.ArrowRight) player.x += player.speed;
+  document.addEventListener('keydown', (e) => {
+  if (e.key === 'm') toggleMenu();
+  });
 
   // Keep player within bounds
   player.x = Math.max(0, Math.min(mapWidth - tileSize, player.x));
@@ -191,7 +341,18 @@ function gameLoop() {
   // Draw everything
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawMap();
-
+  // Update entities
+  traffic.forEach(car => car.update());
+  cars.forEach(car => car.update());
+  
+  // Draw everything
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawMap();
+  
+  // Draw cars
+  traffic.forEach(car => car.draw(ctx));
+  cars.forEach(car => car.draw(ctx));
+  
   // Draw player
   ctx.fillStyle = '#ff0000';
   ctx.fillRect(
@@ -206,6 +367,7 @@ function gameLoop() {
 
 // Start the game loop after textures load
 const allTextures = Object.values(textures);
+generateTraffic();
 Promise.all(allTextures.map((img) => new Promise((resolve) => (img.onload = resolve)))).then(() => {
   gameLoop();
 });
