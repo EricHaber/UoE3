@@ -114,10 +114,10 @@ const map = generateMap();
 
 // Road logic
 function isCityRoad(x, y) {
-  const cycle = 13;
+  const cycle = 6;
   const xMod = x % cycle;
   const yMod = y % cycle;
-  return (xMod < 2) || (yMod < 2);
+  return (xMod === 0) || (yMod === 0);
 }
 
 function isSuburbRoad(x, y) {
