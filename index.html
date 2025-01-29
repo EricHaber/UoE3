@@ -1,138 +1,73 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>GTA-like Game</title>
+  <title>GTA1-like Game</title>
   <script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; }
-    #phoneMenu {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 300px;
-      height: 500px;
-      background: rgba(0,0,0,0.8);
-      color: white;
-      display: none;
-      padding: 20px;
-      border-radius: 10px;
+    body {
+      margin: 0;
+      overflow: hidden;
     }
-    .menu-item { 
-      padding: 10px; 
-      margin: 5px;
-      background: #333;
-      cursor: pointer;
+    canvas {
+      display: block;
     }
   </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
-<div id="phoneMenu">
-  <div class="menu-item" onclick="spawnVehicle('car')">Spawn Car</div>
-  <div class="menu-item" onclick="spawnVehicle('bike')">Spawn Bike</div>
-  <div class="menu-item" onclick="spawnVehicle('helicopter')">Spawn Helicopter</div>
-</div>
-
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const phoneMenu = document.getElementById('phoneMenu');
 const mapWidth = 30000;
 const mapHeight = 30000;
-const tileSize = 250;
+const tileSize = 250; // Adjusted for zoom
 const playerSize = 16;
 const noiseScale = 0.02;
 const noiseScale2 = 0.05;
 
-canvas.width = 1920;
+canvas.width = 1920; // Fixed viewport size
 canvas.height = 1080;
 
 const simplex = new SimplexNoise();
-let currentVehicle = null;
-let menuOpen = false;
 
-// Modified player object with vehicle control
 const player = {
   x: 100,
   y: 100,
   speed: 2,
-  inVehicle: false,
-  vehicle: null
 };
 
-const vehicles = [];
-const traffic = [];
-
-class Vehicle {
-  constructor(type, x, y) {
-    this.type = type;
-    this.x = x;
-    this.y = y;
-    this.speed = 0;
-    this.maxSpeed = type === 'car' ? 5 : type === 'bike' ? 3 : 8;
-    this.direction = 0;
-  }
-}
-
-// Add traffic system
-class TrafficCar {
-  constructor(x, y, direction) {
-    this.x = x;
-    this.y = y;
-    this.speed = 3;
-    this.direction = direction;
-    this.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
-  }
-}
-
-// Generate initial traffic
-function generateTraffic() {
-  for(let i = 0; i < 50; i++) {
-    traffic.push(new TrafficCar(
-      Math.random() * mapWidth,
-      Math.random() * mapHeight,
-      Math.random() * Math.PI * 2
-    ));
-  }
-}
-
-// Modified key handling
 const keys = {
   ArrowUp: false,
   ArrowDown: false,
   ArrowLeft: false,
   ArrowRight: false,
-  KeyM: false,
-  KeyE: false
 };
 
 document.addEventListener('keydown', (e) => {
-  if(e.code in keys) keys[e.code] = true;
+  keys[e.code] = true;
 });
 
 document.addEventListener('keyup', (e) => {
-  if(e.code in keys) keys[e.code] = false;
+  keys[e.code] = false;
 });
 
-// Texture loading (add your own textures)
+// Textures
 const textures = {
   water: new Image(),
   city: new Image(),
   suburbs: new Image(),
   grassland: new Image(),
   road: new Image(),
-  driveway: new Image()
 };
 
+// Load textures
 textures.water.src = 'water.png';
 textures.city.src = 'city.png';
 textures.suburbs.src = 'suburbs.png';
 textures.grassland.src = 'grassland.png';
 textures.road.src = 'road.png';
-textures.driveway.src = 'driveway.png';
 
-// Modified map generation with driveways
+// Generate the map
 function generateMap() {
   const mapData = [];
   for (let y = 0; y < mapHeight / tileSize; y+=0.25) {
@@ -143,163 +78,137 @@ function generateMap() {
       const combinedNoise = noiseValue1 + noiseValue2;
 
       let biome = 'grassland';
-      if (combinedNoise < -0.5) biome = 'water';
-      else if (combinedNoise < -0.1) biome = 'suburbs';
-      else if (combinedNoise > 0.9) biome = 'city';
-      else if (combinedNoise > 0.4) biome = 'suburbs';
+      if (combinedNoise < -0.5) {
+        biome = 'water';
+      } else if (combinedNoise < -0.1) {
+        biome = 'suburbs';
+      } else if (combinedNoise > 0.9) {
+        biome = 'city';
+      } else if (combinedNoise > 0.4) {
+        biome = 'suburbs';
+      }
 
-      const tile = {
+      row.push({
         noise: combinedNoise,
         biome: biome,
-        driveway: null
-      };
-
-      // Determine driveway direction for suburbs
-      if(biome === 'suburbs' && !isSuburbRoad(x, y)) {
-        const directions = [
-          {dx: 0, dy: -1}, // up
-          {dx: 0, dy: 1},  // down
-          {dx: -1, dy: 0}, // left
-          {dx: 1, dy: 0}   // right
-        ];
-        
-        for(let dir of directions) {
-          const nx = x + dir.dx;
-          const ny = y + dir.dy;
-          if(nx >= 0 && ny >= 0 && nx < mapWidth/tileSize && ny < mapHeight/tileSize) {
-            if(isSuburbRoad(nx, ny)) {
-              tile.driveway = dir;
-              break;
-            }
-          }
-        }
-      }
-      
-      row.push(tile);
+      });
     }
     mapData.push(row);
   }
+
+  // Set player to spawn in a city
+  for (let y = 0; y < mapData.length; y++) {
+    for (let x = 0; x < mapData[y].length; x++) {
+      if (mapData[y][x].biome === 'city') {
+        player.x = x * tileSize;
+        player.y = y * tileSize;
+        return mapData;
+      }
+    }
+  }
+
   return mapData;
 }
 
 const map = generateMap();
-generateTraffic();
 
-// Modified drawing functions
-function drawDriveway(x, y, direction) {
-  if(!direction) return;
-  ctx.save();
-  ctx.translate(x * tileSize, y * tileSize);
-  
-  if(direction.dx === 1) ctx.rotate(Math.PI/2);
-  else if(direction.dx === -1) ctx.rotate(-Math.PI/2);
-  else if(direction.dy === -1) ctx.rotate(Math.PI);
-  
-  ctx.drawImage(textures.driveway, -tileSize/2, -tileSize/2, tileSize, tileSize);
-  ctx.restore();
+// Road logic
+function isCityRoad(x, y) {
+  const cycle = 6;
+  const xMod = x % cycle;
+  const yMod = y % cycle;
+  return (xMod === 0) || (yMod === 0);
 }
 
-// Modified map drawing
+function isSuburbRoad(x, y) {
+  const mainCycle = 15;
+  const branchCycle = 3;
+  return (x % mainCycle === 0) || (y % branchCycle === 0);
+}
+
+// Draw the map
 function drawMap() {
-  // ... existing map drawing code ...
-  if(tile.driveway) {
-    drawDriveway(worldTileX, worldTileY, tile.driveway);
+  const viewWidth = Math.ceil(canvas.width / tileSize);
+  const viewHeight = Math.ceil(canvas.height / tileSize);
+
+  // Calculate top-left corner of the visible map in tiles
+  const offsetX = player.x - canvas.width / 2;
+  const offsetY = player.y - canvas.height / 2;
+
+  const startTileX = Math.floor(offsetX / tileSize);
+  const startTileY = Math.floor(offsetY / tileSize);
+
+  const tileOffsetX = offsetX % tileSize;
+  const tileOffsetY = offsetY % tileSize;
+
+  for (let y = 0; y <= viewHeight; y++) {
+    for (let x = 0; x <= viewWidth; x++) {
+      const mapX = startTileX + x;
+      const mapY = startTileY + y;
+
+      if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
+        const tile = map[mapY][mapX];
+        const worldTileX = mapX;
+        const worldTileY = mapY;
+
+        let texture = textures[tile.biome] || textures.grassland;
+
+        let isRoad = false;
+        if (tile.biome === 'city') {
+          isRoad = isCityRoad(worldTileX, worldTileY);
+        } else if (tile.biome === 'suburbs') {
+          isRoad = isSuburbRoad(worldTileX, worldTileY);
+        }
+
+        if (isRoad) {
+          texture = textures.road;
+        }
+
+        ctx.drawImage(
+          texture,
+          x * tileSize - tileOffsetX,
+          y * tileSize - tileOffsetY,
+          tileSize,
+          tileSize
+        );
+      }
+    }
   }
 }
 
-// Vehicle control system
-function updateVehicles() {
-  vehicles.forEach(vehicle => {
-    if(vehicle === player.vehicle) {
-      if(keys.ArrowUp) vehicle.speed = Math.min(vehicle.maxSpeed, vehicle.speed + 0.1);
-      if(keys.ArrowDown) vehicle.speed = Math.max(-vehicle.maxSpeed/2, vehicle.speed - 0.1);
-      if(keys.ArrowLeft) vehicle.direction -= 0.05;
-      if(keys.ArrowRight) vehicle.direction += 0.05;
-      
-      vehicle.x += Math.cos(vehicle.direction) * vehicle.speed;
-      vehicle.y += Math.sin(vehicle.direction) * vehicle.speed;
-    }
-  });
-}
-
-// Traffic system
-function updateTraffic() {
-  traffic.forEach(car => {
-    car.x += Math.cos(car.direction) * car.speed;
-    car.y += Math.sin(car.direction) * car.speed;
-    
-    // Simple road following
-    const currentTile = map[Math.floor(car.y/tileSize)][Math.floor(car.x/tileSize)];
-    if(currentTile.biome === 'city' && !isCityRoad(car.x/tileSize, car.y/tileSize)) {
-      car.direction += Math.PI/2;
-    }
-  });
-}
-
-// Menu system
-function toggleMenu() {
-  menuOpen = !menuOpen;
-  phoneMenu.style.display = menuOpen ? 'block' : 'none';
-}
-
-function spawnVehicle(type) {
-  const vehicle = new Vehicle(type, player.x, player.y);
-  vehicles.push(vehicle);
-  player.vehicle = vehicle;
-  player.inVehicle = true;
-  toggleMenu();
-}
-
-// Modified game loop
+// Game loop
 function gameLoop() {
-  if(keys.KeyM && !menuOpen) toggleMenu();
-  
-  if(player.inVehicle) {
-    updateVehicles();
-  } else {
-    // Original player movement
-    if(keys.ArrowUp) player.y -= player.speed;
-    if(keys.ArrowDown) player.y += player.speed;
-    if(keys.ArrowLeft) player.x -= player.speed;
-    if(keys.ArrowRight) player.x += player.speed;
-  }
+  // Player movement
+  if (keys.ArrowUp) player.y -= player.speed;
+  if (keys.ArrowDown) player.y += player.speed;
+  if (keys.ArrowLeft) player.x -= player.speed;
+  if (keys.ArrowRight) player.x += player.speed;
 
-  updateTraffic();
+  // Keep player within bounds
+  player.x = Math.max(0, Math.min(mapWidth - tileSize, player.x));
+  player.y = Math.max(0, Math.min(mapHeight - tileSize, player.y));
 
-  // Drawing code
+  // Draw everything
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawMap();
 
-  // Draw traffic
-  traffic.forEach(car => {
-    ctx.fillStyle = car.color;
-    ctx.save();
-    ctx.translate(car.x - player.x + canvas.width/2, car.y - player.y + canvas.height/2);
-    ctx.rotate(car.direction);
-    ctx.fillRect(-15, -10, 30, 20);
-    ctx.restore();
-  });
-
-  // Draw player/vehicle
-  if(player.inVehicle) {
-    ctx.fillStyle = '#00f';
-    ctx.save();
-    ctx.translate(canvas.width/2, canvas.height/2);
-    ctx.rotate(player.vehicle.direction);
-    ctx.fillRect(-25, -15, 50, 30);
-    ctx.restore();
-  } else {
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(canvas.width/2 - playerSize/2, canvas.height/2 - playerSize/2, playerSize, playerSize);
-  }
+  // Draw player
+  ctx.fillStyle = '#ff0000';
+  ctx.fillRect(
+    canvas.width / 2 - playerSize / 2,
+    canvas.height / 2 - playerSize / 2,
+    playerSize,
+    playerSize
+  );
 
   requestAnimationFrame(gameLoop);
 }
 
-// Start game after textures load
-Promise.all(Object.values(textures).map(img => 
-  new Promise(resolve => img.onload = resolve)
-)).then(() => gameLoop());
+// Start the game loop after textures load
+const allTextures = Object.values(textures);
+Promise.all(allTextures.map((img) => new Promise((resolve) => (img.onload = resolve)))).then(() => {
+  gameLoop();
+});
 </script>
 </body>
 </html>
