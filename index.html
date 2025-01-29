@@ -148,7 +148,7 @@ function generateMap() {
 
       let tile = new Tile(biome);
       
-      if (biome === 'suburbs' && !isRoad && Math.random() < HOUSE_PROBABILITY) {
+      if (biome === 'suburbs' && !isSuburbRoad && Math.random() < HOUSE_PROBABILITY) {
         tile.hasHouse = true;
         tile.driveway = determineDrivewayDirection(x, y, mapData);
       }
