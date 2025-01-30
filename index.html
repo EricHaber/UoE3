@@ -108,20 +108,36 @@ class Car {
     this.color = color;
     this.speed = type === 'truck' ? 1.5 : type === 'sports' ? 4 : 2;
     this.direction = DIRECTION.RIGHT;
+    this.width = 30;
+    this.height = 15;
   }
 
-  draw(ctx) {
+  draw(ctx, playerX, playerY) {
+    // Draw relative to player position
+    const screenX = this.x - playerX + canvas.width/2 - this.width/2;
+    const screenY = this.y - playerY + canvas.height/2 - this.height/2;
+    
+    ctx.save();
+    ctx.translate(screenX + this.width/2, screenY + this.height/2);
+    ctx.rotate(this.direction * Math.PI/2);
     ctx.fillStyle = this.color;
-    ctx.fillRect(this.x, this.y, 30, 15);
+    ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+    ctx.restore();
   }
 
   update() {
-    // Simple traffic movement (needs pathfinding improvement)
     switch(this.direction) {
       case DIRECTION.RIGHT: this.x += this.speed; break;
       case DIRECTION.LEFT: this.x -= this.speed; break;
       case DIRECTION.UP: this.y -= this.speed; break;
       case DIRECTION.DOWN: this.y += this.speed; break;
+    }
+    
+    // Simple road following (improve with pathfinding)
+    if (Math.random() < 0.01) {
+      this.direction = [DIRECTION.UP, DIRECTION.RIGHT, DIRECTION.DOWN, DIRECTION.LEFT][
+        Math.floor(Math.random() * 4)
+      ];
     }
   }
 }
@@ -184,16 +200,28 @@ function determineDrivewayDirection(x, y, mapData) {
 
 
 function generateTraffic() {
+  // Remove the player spawn code from here
   setInterval(() => {
-    if (traffic.length < 20) { // Max 20 traffic cars
+    if (traffic.length < 20) {
       const spawnPoints = [];
       for (let y = 0; y < map.length; y++) {
         for (let x = 0; x < map[y].length; x++) {
-          if (map[y][x].biome === 'road') {
-            spawnPoints.push({x: x * tileSize, y: y * tileSize});
+          const tile = map[y][x];
+          const isRoad = tile.biome === 'city' ? 
+            isCityRoad(x, y) : 
+            tile.biome === 'suburbs' ? 
+            isSuburbRoad(x, y) : 
+            false;
+          
+          if (isRoad) {
+            spawnPoints.push({
+              x: x * tileSize + tileSize/2,
+              y: y * tileSize + tileSize/2
+            });
           }
         }
       }
+      
       if (spawnPoints.length > 0) {
         const {x, y} = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
         const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'];
@@ -201,20 +229,6 @@ function generateTraffic() {
       }
     }
   }, 3000);
-
-
-  
-  // Set player to spawn in a city
-  for (let y = 0; y < map.length; y++) {
-    for (let x = 0; x < map[y].length; x++) {
-      if (map[y][x].biome === 'city') {
-        player.x = x * tileSize;
-        player.y = y * tileSize;
-        return map;
-      }
-    }
-  }
-  return map;
 }
 
 function toggleMenu() {
@@ -232,7 +246,6 @@ function spawnCar(type) {
   toggleMenu();
 }
 
-const map = generateMap();
 
 // Road logic
 function isCityRoad(x, y) {
@@ -329,6 +342,7 @@ function gameLoop() {
   if (keys.ArrowDown) player.y += player.speed;
   if (keys.ArrowLeft) player.x -= player.speed;
   if (keys.ArrowRight) player.x += player.speed;
+  
   document.addEventListener('keydown', (e) => {
   if (e.key === 'm') toggleMenu();
   });
@@ -336,6 +350,9 @@ function gameLoop() {
   // Keep player within bounds
   player.x = Math.max(0, Math.min(mapWidth - tileSize, player.x));
   player.y = Math.max(0, Math.min(mapHeight - tileSize, player.y));
+
+  traffic.forEach(car => car.update());
+  cars.forEach(car => car.update());
 
   // Draw everything
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -349,14 +366,15 @@ function gameLoop() {
   drawMap();
   
   // Draw cars
-  traffic.forEach(car => car.draw(ctx));
-  cars.forEach(car => car.draw(ctx));
+  traffic.forEach(car => car.draw(ctx, player.x, player.y));
+  cars.forEach(car => car.draw(ctx, player.x, player.y));
+
+
   
-  // Draw player
   ctx.fillStyle = '#ff0000';
   ctx.fillRect(
-    canvas.width / 2 - playerSize / 2,
-    canvas.height / 2 - playerSize / 2,
+    canvas.width/2 - playerSize/2,
+    canvas.height/2 - playerSize/2,
     playerSize,
     playerSize
   );
@@ -365,8 +383,10 @@ function gameLoop() {
 }
 
 // Start the game loop after textures load
-const allTextures = Object.values(textures);
+
+const map = generateMap();
 generateTraffic();
+const allTextures = Object.values(textures);
 Promise.all(allTextures.map((img) => new Promise((resolve) => (img.onload = resolve)))).then(() => {
   gameLoop();
 });
