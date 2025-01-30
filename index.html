@@ -77,6 +77,18 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
 });
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyF') keys.KeyF = true;
+});
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'KeyF') keys.KeyF = false;
+});
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyM') keys.KeyM = true;
+});
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'KeyM') keys.KeyM = false;
+});
 
 // Textures
 const textures = {
@@ -114,6 +126,8 @@ class Car {
     this.height = 15;
     this.driver = null;
     this.active = false;
+    this.isTraffic = false; // Add traffic flag
+
   }
 
   enter(player) {
@@ -146,13 +160,30 @@ class Car {
     ctx.restore();
   }
 
+
+
   update() {
     if (this.active && this.driver) {
-      // Move with arrow keys
+      // Player-controlled movement
       if (keys.ArrowUp) this.y -= this.speed;
       if (keys.ArrowDown) this.y += this.speed;
       if (keys.ArrowLeft) this.x -= this.speed;
       if (keys.ArrowRight) this.x += this.speed;
+    } else if (this.isTraffic) {
+      // Traffic AI movement
+      switch(this.direction) {
+        case DIRECTION.RIGHT: this.x += this.speed; break;
+        case DIRECTION.LEFT: this.x -= this.speed; break;
+        case DIRECTION.UP: this.y -= this.speed; break;
+        case DIRECTION.DOWN: this.y += this.speed; break;
+      }
+      
+      // Random direction changes
+      if (Math.random() < 0.01) {
+        this.direction = [DIRECTION.UP, DIRECTION.RIGHT, DIRECTION.DOWN, DIRECTION.LEFT][
+          Math.floor(Math.random() * 4)
+        ];
+      }
     }
   }
 }
@@ -285,12 +316,16 @@ function manageTraffic() {
   });
 }
 function spawnTrafficInChunk(chunkX, chunkY) {
-  const numCars = Math.floor(Math.random() * 3); // 0-2 cars per chunk
+  const numCars = Math.floor(Math.random() * 3);
   for (let i = 0; i < numCars; i++) {
     const x = chunkX * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
     const y = chunkY * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
     const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'];
     const newCar = new Car(x, y, 'traffic', colors[Math.floor(Math.random() * colors.length)]);
+    newCar.isTraffic = true;
+    newCar.direction = [DIRECTION.UP, DIRECTION.RIGHT, DIRECTION.DOWN, DIRECTION.LEFT][
+      Math.floor(Math.random() * 4)
+    ];
     traffic.push(newCar);
   }
 }
@@ -399,13 +434,13 @@ function drawMap() {
 // Game loop
 function gameLoop() {
   
-  document.addEventListener('keydown', (e) => {
-  if (e.key === 'm') toggleMenu();
-  });
+
+  if (keys.KeyM) toggleMenu();
+
 
   // Keep player within bounds
     // Player/Car movement
-  if (player.currentVehicle) {
+   if (player.currentVehicle) {
     player.currentVehicle.update();
     player.x = player.currentVehicle.x;
     player.y = player.currentVehicle.y;
@@ -414,6 +449,18 @@ function gameLoop() {
     if (keys.ArrowDown) player.y += player.speed;
     if (keys.ArrowLeft) player.x -= player.speed;
     if (keys.ArrowRight) player.x += player.speed;
+    
+    // Check for nearby cars to enter
+    const enterRange = 50;
+    const nearbyCar = [...cars, ...traffic].find(car => 
+      !car.driver &&
+      Math.abs(car.x - player.x) < enterRange &&
+      Math.abs(car.y - player.y) < enterRange
+    );
+    
+    if (keys.KeyF && nearbyCar) {
+      nearbyCar.enter(player);
+    }
   }
 
   // Exit vehicle
@@ -455,7 +502,8 @@ function gameLoop() {
 }
 
 // Start the game loop after textures load
-
+player.visible = true;
+player.currentVehicle = null;
 const map = generateMap();
 generateTraffic();
 const allTextures = Object.values(textures);
