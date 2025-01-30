@@ -181,53 +181,62 @@ class Car {
   }
   
   update() {
-    if (this.active && this.driver) {
-        // Only allow rotation if the car is moving
-        if (this.currentSpeed !== 0) {
-            const speedFactor = Math.min(1, Math.abs(this.currentSpeed) / this.maxSpeed);
-            const effectiveRotation = this.baseRotation * (1 - speedFactor * 0.8);
-
-            if (keys.KeyA) this.angle -= effectiveRotation;
-            if (keys.KeyD) this.angle += effectiveRotation;
-        }
-
-        // Acceleration physics
-        if (keys.KeyW) {
-            this.currentSpeed = Math.min(
-                this.currentSpeed + this.acceleration,
-                this.maxSpeed
-            );
-        } else if (keys.KeyS) {
-            this.currentSpeed = Math.max(
-                this.currentSpeed - this.acceleration * 1.5,
-                -this.maxSpeed * 0.5
-            );
-        } else {
-            // Natural deceleration
-            const decel = this.currentSpeed > 0 ? -this.deceleration : this.deceleration;
-            this.currentSpeed += decel;
-            if (Math.abs(this.currentSpeed) < 0.1) this.currentSpeed = 0;
-        }
-
-        // Apply movement
-        this.x += Math.cos(this.angle) * this.currentSpeed;
-        this.y += Math.sin(this.angle) * this.currentSpeed;
-    } else if (this.isTraffic) {
-        // Traffic AI movement
-        this.currentSpeed = Math.min(
-            this.currentSpeed + this.acceleration * 0.5,
-            this.maxSpeed * 0.8
-        );
-        this.x += Math.cos(this.angle) * this.currentSpeed;
-        this.y += Math.sin(this.angle) * this.currentSpeed;
-        
-        // Random direction changes with speed-dependent steering
-        if (Math.random() < 0.01) {
-            const trafficRotation = this.baseRotation * (1 - Math.abs(this.currentSpeed) / this.maxSpeed);
-            this.angle += (Math.random() - 0.5) * trafficRotation * 2;
-        }
-    }
-  }
+      if (this.active && this.driver) {
+          // Define grip threshold for slipping effect
+          const gripThreshold = this.maxSpeed * 0.8; // If speed > 80% of max, slipping starts
+  
+          // Only allow turning if the car is moving
+          if (this.currentSpeed !== 0) {
+              const turningRadius = 1.5; // Controls how much the car turns
+  
+              if (Math.abs(this.currentSpeed) > gripThreshold) {
+                  // If speed is too high, car slips (limited control)
+                  if (keys.KeyA) this.angle -= this.baseRotation * 0.3; // Reduced control
+                  if (keys.KeyD) this.angle += this.baseRotation * 0.3;
+              } else {
+                  // Normal turning within the set radius
+                  if (keys.KeyA) this.angle -= this.baseRotation * turningRadius;
+                  if (keys.KeyD) this.angle += this.baseRotation * turningRadius;
+              }
+          }
+  
+          // Acceleration and braking
+          if (keys.KeyW) {
+              this.currentSpeed = Math.min(
+                  this.currentSpeed + this.acceleration,
+                  this.maxSpeed
+              );
+          } else if (keys.KeyS) {
+              this.currentSpeed = Math.max(
+                  this.currentSpeed - this.acceleration * 2,
+                  -this.maxSpeed * 0.5
+              );
+          } else {
+              // Faster deceleration when no keys are pressed
+              const decel = this.currentSpeed > 0 ? -this.deceleration * 2 : this.deceleration * 2;
+              this.currentSpeed += decel;
+              if (Math.abs(this.currentSpeed) < 0.5) this.currentSpeed = 0; // Stops sooner
+          }
+  
+          // Apply movement
+          this.x += Math.cos(this.angle) * this.currentSpeed;
+          this.y += Math.sin(this.angle) * this.currentSpeed;
+      } else if (this.isTraffic) {
+          // Traffic AI movement
+          this.currentSpeed = Math.min(
+              this.currentSpeed + this.acceleration * 0.5,
+              this.maxSpeed * 0.8
+          );
+          this.x += Math.cos(this.angle) * this.currentSpeed;
+          this.y += Math.sin(this.angle) * this.currentSpeed;
+          
+          // Random direction changes
+          if (Math.random() < 0.01) {
+              const trafficRotation = this.baseRotation * (1 - Math.abs(this.currentSpeed) / this.maxSpeed);
+              this.angle += (Math.random() - 0.5) * trafficRotation * 2;
+          }
+      }
+  }  
 }
   
 // Generate the map
