@@ -120,86 +120,84 @@ class Car {
     this.y = y;
     this.type = type;
     this.color = color;
-    this.speed = type === 'truck' ? 1.5 : type === 'sports' ? 4 : 2;
-    this.angle = 0; // Now using radians for rotation
+    
+    // Vehicle performance characteristics
+    switch(type) {
+      case 'sports':
+        this.maxSpeed = 8;
+        this.acceleration = 0.15;
+        this.baseRotation = 0.04;
+        break;
+      case 'truck':
+        this.maxSpeed = 4;
+        this.acceleration = 0.08;
+        this.baseRotation = 0.03;
+        break;
+      default: // sedan
+        this.maxSpeed = 6;
+        this.acceleration = 0.12;
+        this.baseRotation = 0.035;
+    }
+    
+    this.angle = 0;
     this.width = 30;
     this.height = 15;
     this.driver = null;
     this.active = false;
     this.isTraffic = false;
     this.currentSpeed = 0;
-    this.maxSpeed = this.speed * 2;
-    this.acceleration = 0.1;
     this.deceleration = 0.2;
-  }
-
-  enter(player) {
-    this.driver = player;
-    this.active = true;
-    player.visible = false;
-    player.currentVehicle = this;
-    this.currentSpeed = 0;
-  }
-
-  exit() {
-    if (this.driver) {
-      this.driver.x = this.x;
-      this.driver.y = this.y;
-      this.driver.visible = true;
-      this.driver.currentVehicle = null;
-      this.driver = null;
-    }
-    this.active = false;
-  }
-
-  draw(ctx, playerX, playerY) {
-    const screenX = this.x - playerX + canvas.width/2 - this.width/2;
-    const screenY = this.y - playerY + canvas.height/2 - this.height/2;
-    
-    ctx.save();
-    ctx.translate(screenX + this.width/2, screenY + this.height/2);
-    ctx.rotate(this.angle); // Use radians for rotation
-    ctx.fillStyle = this.color;
-    ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
-    ctx.restore();
   }
 
   update() {
     if (this.active && this.driver) {
-      // Rotation with A/D
-      const rotationSpeed = 0.05;
-      if (keys.KeyA) this.angle -= rotationSpeed;
-      if (keys.KeyD) this.angle += rotationSpeed;
+      // Speed-dependent steering
+      const speedFactor = Math.min(1, Math.abs(this.currentSpeed) / this.maxSpeed);
+      const effectiveRotation = this.baseRotation * (1 - speedFactor * 0.8);
 
-      // Acceleration with W/S
+      // Steering
+      if (keys.KeyA) this.angle -= effectiveRotation;
+      if (keys.KeyD) this.angle += effectiveRotation;
+
+      // Acceleration physics
       if (keys.KeyW) {
-        this.currentSpeed = Math.min(this.currentSpeed + this.acceleration, this.maxSpeed);
+        this.currentSpeed = Math.min(
+          this.currentSpeed + this.acceleration,
+          this.maxSpeed
+        );
       } else if (keys.KeyS) {
-        this.currentSpeed = Math.max(this.currentSpeed - this.acceleration, -this.maxSpeed/2);
+        this.currentSpeed = Math.max(
+          this.currentSpeed - this.acceleration * 1.5,
+          -this.maxSpeed * 0.5
+        );
       } else {
         // Natural deceleration
-        if (this.currentSpeed > 0) {
-          this.currentSpeed = Math.max(this.currentSpeed - this.deceleration, 0);
-        } else if (this.currentSpeed < 0) {
-          this.currentSpeed = Math.min(this.currentSpeed + this.deceleration, 0);
-        }
+        const decel = this.currentSpeed > 0 ? -this.deceleration : this.deceleration;
+        this.currentSpeed += decel;
+        if (Math.abs(this.currentSpeed) < 0.1) this.currentSpeed = 0;
       }
 
       // Apply movement
       this.x += Math.cos(this.angle) * this.currentSpeed;
       this.y += Math.sin(this.angle) * this.currentSpeed;
     } else if (this.isTraffic) {
-      // Traffic AI movement
-      this.x += Math.cos(this.angle) * this.speed;
-      this.y += Math.sin(this.angle) * this.speed;
+      // Traffic AI movement with speed management
+      this.currentSpeed = Math.min(
+        this.currentSpeed + this.acceleration * 0.5,
+        this.maxSpeed * 0.8
+      );
+      this.x += Math.cos(this.angle) * this.currentSpeed;
+      this.y += Math.sin(this.angle) * this.currentSpeed;
       
-      // Random direction changes
+      // Random direction changes with speed-dependent steering
       if (Math.random() < 0.01) {
-        this.angle += (Math.random() - 0.5) * 0.5;
+        const trafficRotation = this.baseRotation * (1 - Math.abs(this.currentSpeed)/this.maxSpeed);
+        this.angle += (Math.random() - 0.5) * trafficRotation * 2;
       }
     }
   }
 }
+  
 // Generate the map
 function generateMap() {
   const mapData = [];
