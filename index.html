@@ -125,18 +125,18 @@ class Car {
     switch(type) {
       case 'sports':
         this.maxSpeed = 8;
-        this.acceleration = 0.15;
-        this.baseRotation = 0.04;
+        this.acceleration = 0.03;
+        this.baseRotation = 0.06;
         break;
       case 'truck':
         this.maxSpeed = 4;
-        this.acceleration = 0.08;
-        this.baseRotation = 0.03;
+        this.acceleration = 0.01;
+        this.baseRotation = 0.04;
         break;
       default: // sedan
         this.maxSpeed = 6;
-        this.acceleration = 0.12;
-        this.baseRotation = 0.035;
+        this.acceleration = 0.02;
+        this.baseRotation = 0.05;
     }
     
     this.angle = 0;
