@@ -149,6 +149,37 @@ class Car {
     this.deceleration = 0.2;
   }
 
+  enter(player) {
+    this.driver = player;
+    this.active = true;
+    player.visible = false;
+    player.currentVehicle = this;
+    this.currentSpeed = 0;
+  }
+
+  exit() {
+    if (this.driver) {
+      this.driver.x = this.x;
+      this.driver.y = this.y;
+      this.driver.visible = true;
+      this.driver.currentVehicle = null;
+      this.driver = null;
+    }
+    this.active = false;
+  }
+
+  draw(ctx, playerX, playerY) {
+    const screenX = this.x - playerX + canvas.width/2 - this.width/2;
+    const screenY = this.y - playerY + canvas.height/2 - this.height/2;
+    
+    ctx.save();
+    ctx.translate(screenX + this.width/2, screenY + this.height/2);
+    ctx.rotate(this.angle); // Use radians for rotation
+    ctx.fillStyle = this.color;
+    ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+    ctx.restore();
+  }
+  
   update() {
     if (this.active && this.driver) {
       // Speed-dependent steering
