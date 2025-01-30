@@ -201,6 +201,12 @@ class Car {
 // Generate the map
 function generateMap() {
   const mapData = [];
+  const centerX = mapWidth / 2;
+  const centerY = mapHeight / 2;
+  
+  // Find nearest road tile to center
+  let closestTile = { x: centerX, y: centerY };
+  let minDistance = Infinity;
   for (let y = 0; y < mapHeight / tileSize; y+=0.25) {
     const row = [];
     for (let x = 0; x < mapWidth / tileSize; x+=0.25) {
@@ -230,7 +236,25 @@ function generateMap() {
     }
     mapData.push(row);
   }
-  
+
+
+  for (let y = 0; y < mapData.length; y++) {
+    for (let x = 0; x < mapData[y].length; x++) {
+      if (mapData[y][x].biome === 'city' && isCityRoad(x, y)) {
+        const tileX = x * tileSize;
+        const tileY = y * tileSize;
+        const dist = Math.hypot(tileX - centerX, tileY - centerY);
+        
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestTile = { x: tileX, y: tileY };
+        }
+      }
+    }
+  }
+
+  player.x = closestTile.x;
+  player.y = closestTile.y;
   return mapData;
 }
 
