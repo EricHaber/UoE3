@@ -49,6 +49,8 @@ const DIRECTION = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
 const cars = [];
 const traffic = [];
 const HOUSE_PROBABILITY = 0.3;
+const CHUNK_SIZE = 1000; // World units
+const loadedChunks = new Set();
   
 canvas.width = 1920; // Fixed viewport size
 canvas.height = 1080;
@@ -110,10 +112,29 @@ class Car {
     this.direction = DIRECTION.RIGHT;
     this.width = 30;
     this.height = 15;
+    this.driver = null;
+    this.active = false;
+  }
+
+  enter(player) {
+    this.driver = player;
+    this.active = true;
+    player.visible = false;
+    player.currentVehicle = this;
+  }
+
+  exit() {
+    if (this.driver) {
+      this.driver.x = this.x;
+      this.driver.y = this.y;
+      this.driver.visible = true;
+      this.driver.currentVehicle = null;
+      this.driver = null;
+    }
+    this.active = false;
   }
 
   draw(ctx, playerX, playerY) {
-    // Draw relative to player position
     const screenX = this.x - playerX + canvas.width/2 - this.width/2;
     const screenY = this.y - playerY + canvas.height/2 - this.height/2;
     
@@ -126,18 +147,12 @@ class Car {
   }
 
   update() {
-    switch(this.direction) {
-      case DIRECTION.RIGHT: this.x += this.speed; break;
-      case DIRECTION.LEFT: this.x -= this.speed; break;
-      case DIRECTION.UP: this.y -= this.speed; break;
-      case DIRECTION.DOWN: this.y += this.speed; break;
-    }
-    
-    // Simple road following (improve with pathfinding)
-    if (Math.random() < 0.01) {
-      this.direction = [DIRECTION.UP, DIRECTION.RIGHT, DIRECTION.DOWN, DIRECTION.LEFT][
-        Math.floor(Math.random() * 4)
-      ];
+    if (this.active && this.driver) {
+      // Move with arrow keys
+      if (keys.ArrowUp) this.y -= this.speed;
+      if (keys.ArrowDown) this.y += this.speed;
+      if (keys.ArrowLeft) this.x -= this.speed;
+      if (keys.ArrowRight) this.x += this.speed;
     }
   }
 }
@@ -197,7 +212,19 @@ function determineDrivewayDirection(x, y, mapData) {
   }
   return DIRECTION.DOWN; // Default direction
 }
-
+function getCurrentChunks() {
+  const chunks = [];
+  const playerChunkX = Math.floor(player.x / CHUNK_SIZE);
+  const playerChunkY = Math.floor(player.y / CHUNK_SIZE);
+  
+  // Load 3x3 area around player
+  for (let x = -1; x <= 1; x++) {
+    for (let y = -1; y <= 1; y++) {
+      chunks.push(`${playerChunkX + x},${playerChunkY + y}`);
+    }
+  }
+  return chunks;
+}
 
 function generateTraffic() {
   // Remove the player spawn code from here
@@ -236,13 +263,47 @@ function toggleMenu() {
   menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
 }
 
+function manageTraffic() {
+  const currentChunks = getCurrentChunks();
+  
+  // Remove old chunks
+  traffic.forEach((car, index) => {
+    const carChunkX = Math.floor(car.x / CHUNK_SIZE);
+    const carChunkY = Math.floor(car.y / CHUNK_SIZE);
+    if (!currentChunks.includes(`${carChunkX},${carChunkY}`)) {
+      traffic.splice(index, 1);
+    }
+  });
+
+  // Add new chunks
+  currentChunks.forEach(chunk => {
+    if (!loadedChunks.has(chunk)) {
+      loadedChunks.add(chunk);
+      const [chunkX, chunkY] = chunk.split(',').map(Number);
+      spawnTrafficInChunk(chunkX, chunkY);
+    }
+  });
+}
+function spawnTrafficInChunk(chunkX, chunkY) {
+  const numCars = Math.floor(Math.random() * 3); // 0-2 cars per chunk
+  for (let i = 0; i < numCars; i++) {
+    const x = chunkX * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
+    const y = chunkY * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
+    const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'];
+    const newCar = new Car(x, y, 'traffic', colors[Math.floor(Math.random() * colors.length)]);
+    traffic.push(newCar);
+  }
+}
+  
 function spawnCar(type) {
   const colors = {
     sedan: '#666666',
     sports: '#FF3300',
     truck: '#00AAFF'
   };
-  cars.push(new Car(player.x, player.y, type, colors[type]));
+  const newCar = new Car(player.x, player.y, type, colors[type]);
+  newCar.enter(player);
+  cars.push(newCar);
   toggleMenu();
 }
 
@@ -337,47 +398,58 @@ function drawMap() {
 
 // Game loop
 function gameLoop() {
-  // Player movement
-  if (keys.ArrowUp) player.y -= player.speed;
-  if (keys.ArrowDown) player.y += player.speed;
-  if (keys.ArrowLeft) player.x -= player.speed;
-  if (keys.ArrowRight) player.x += player.speed;
   
   document.addEventListener('keydown', (e) => {
   if (e.key === 'm') toggleMenu();
   });
 
   // Keep player within bounds
+    // Player/Car movement
+  if (player.currentVehicle) {
+    player.currentVehicle.update();
+    player.x = player.currentVehicle.x;
+    player.y = player.currentVehicle.y;
+  } else {
+    if (keys.ArrowUp) player.y -= player.speed;
+    if (keys.ArrowDown) player.y += player.speed;
+    if (keys.ArrowLeft) player.x -= player.speed;
+    if (keys.ArrowRight) player.x += player.speed;
+  }
+
+  // Exit vehicle
+  if (keys.KeyE && player.currentVehicle) {
+    player.currentVehicle.exit();
+  }
+
+  // Keep within bounds
   player.x = Math.max(0, Math.min(mapWidth - tileSize, player.x));
   player.y = Math.max(0, Math.min(mapHeight - tileSize, player.y));
 
+  // Manage traffic chunks
+  manageTraffic();
+
+  // Update entities
   traffic.forEach(car => car.update());
   cars.forEach(car => car.update());
 
   // Draw everything
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawMap();
-  // Update entities
-  traffic.forEach(car => car.update());
-  cars.forEach(car => car.update());
-  
-  // Draw everything
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawMap();
-  
+
   // Draw cars
   traffic.forEach(car => car.draw(ctx, player.x, player.y));
   cars.forEach(car => car.draw(ctx, player.x, player.y));
 
-
-  
-  ctx.fillStyle = '#ff0000';
-  ctx.fillRect(
-    canvas.width/2 - playerSize/2,
-    canvas.height/2 - playerSize/2,
-    playerSize,
-    playerSize
-  );
+  // Draw player if visible
+  if (player.visible) {
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(
+      canvas.width/2 - playerSize/2,
+      canvas.height/2 - playerSize/2,
+      playerSize,
+      playerSize
+    );
+  }
 
   requestAnimationFrame(gameLoop);
 }
