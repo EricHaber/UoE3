@@ -130,21 +130,21 @@ class Car {
         this.acceleration = 0.01;
         this.minTurningRadius = 7;    // Tightest possible turn radius
         this.grip = 2.0;               // Lateral acceleration capability
-        this.steeringResponse = 0.12;  // Initial steering responsiveness
+        this.steeringResponse = 0.04;  // Initial steering responsiveness
         break;
       case 'truck':
         this.maxSpeed = 2;
         this.acceleration = 0.005;
         this.minTurningRadius = 15;
         this.grip = 1.2;
-        this.steeringResponse = 0.08;
+        this.steeringResponse = 0.02;
         break;
       default: // sedan
         this.maxSpeed = 3;
         this.acceleration = 0.0075;
         this.minTurningRadius = 10;
         this.grip = 1.6;
-        this.steeringResponse = 0.1;
+        this.steeringResponse = 0.03;
     }
 
     this.angle = 0;
