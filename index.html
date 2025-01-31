@@ -61,6 +61,8 @@ const player = {
   x: 100,
   y: 100,
   speed: 2,
+  visible: true,
+  currentVehicle: null
 };
 
 const keys = {
@@ -156,7 +158,26 @@ class Car {
     this.wheelBase = 20; // Distance between front and rear axles (for visual only)
   }
 
-  // ... enter() and exit() methods remain unchanged ...
+  enter(player) {
+    this.driver = player;
+    this.active = true;
+    player.visible = false;
+    player.currentVehicle = this;
+    this.currentSpeed = 0;
+    this.x = player.x;
+    this.y = player.y;
+  }
+
+  exit() {
+    if (this.driver) {
+      this.driver.x = this.x;
+      this.driver.y = this.y;
+      this.driver.visible = true;
+      this.driver.currentVehicle = null;
+      this.driver = null;
+    }
+    this.active = false;
+  }
 
   draw(ctx, playerX, playerY) {
     const screenX = this.x - playerX + canvas.width/2 - this.width/2;
