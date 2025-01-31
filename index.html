@@ -126,23 +126,23 @@ class Car {
     // Vehicle performance characteristics
     switch(type) {
       case 'sports':
-        this.maxSpeed = 8;
-        this.acceleration = 0.03;
-        this.minTurningRadius = 30;    // Tightest possible turn radius
+        this.maxSpeed = 4;
+        this.acceleration = 0.01;
+        this.minTurningRadius = 7;    // Tightest possible turn radius
         this.grip = 2.0;               // Lateral acceleration capability
         this.steeringResponse = 0.12;  // Initial steering responsiveness
         break;
       case 'truck':
-        this.maxSpeed = 4;
-        this.acceleration = 0.01;
-        this.minTurningRadius = 60;
+        this.maxSpeed = 2;
+        this.acceleration = 0.005;
+        this.minTurningRadius = 15;
         this.grip = 1.2;
         this.steeringResponse = 0.08;
         break;
       default: // sedan
-        this.maxSpeed = 6;
-        this.acceleration = 0.02;
-        this.minTurningRadius = 40;
+        this.maxSpeed = 3;
+        this.acceleration = 0.0075;
+        this.minTurningRadius = 10;
         this.grip = 1.6;
         this.steeringResponse = 0.1;
     }
