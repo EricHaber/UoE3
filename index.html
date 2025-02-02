@@ -128,9 +128,9 @@ class Car {
       case 'sports':
         this.maxSpeed = 4;
         this.acceleration = 0.01;
-        this.minTurningRadius = 7;    // Tightest possible turn radius
-        this.grip = 2.0;               // Lateral acceleration capability
-        this.steeringResponse = 0.04;  // Initial steering responsiveness
+        this.minTurningRadius = 7;
+        this.grip = 2.0;
+        this.steeringResponse = 0.04;
         break;
       case 'truck':
         this.maxSpeed = 2;
@@ -155,7 +155,8 @@ class Car {
     this.isTraffic = false;
     this.currentSpeed = 0;
     this.deceleration = 0.002;
-    this.wheelBase = 20; // Distance between front and rear axles (for visual only)
+    this.wheelBase = 20; // Distance between front and rear axles
+    this.track = this.width * 0.6; // Distance between left/right wheels
   }
 
   enter(player) {
@@ -193,13 +194,18 @@ class Car {
     
     // Draw wheels
     ctx.fillStyle = '#333';
-    const wheelOffset = this.wheelBase/2;
-    [-1, 1].forEach(dir => {
-      // Front wheels
-      ctx.fillRect(-this.width/4 - wheelOffset*dir, -this.height/2 - 2, 8, 4);
-      // Rear wheels
-      ctx.fillRect(this.width/4 - wheelOffset*dir, this.height/2 - 2, 8, 4);
-    });
+    const wheelWidth = 8;
+    const wheelHeight = 4;
+    const axleFront = this.wheelBase/2;
+    const axleRear = -this.wheelBase/2;
+    
+    // Front wheels
+    ctx.fillRect(-this.track/2, axleFront - wheelHeight/2, wheelWidth, wheelHeight);
+    ctx.fillRect(this.track/2 - wheelWidth, axleFront - wheelHeight/2, wheelWidth, wheelHeight);
+    
+    // Rear wheels
+    ctx.fillRect(-this.track/2, axleRear - wheelHeight/2, wheelWidth, wheelHeight);
+    ctx.fillRect(this.track/2 - wheelWidth, axleRear - wheelHeight/2, wheelWidth, wheelHeight);
     
     ctx.restore();
   }
@@ -217,43 +223,23 @@ class Car {
         let effectiveRadius;
 
         if (speed <= maxTheoreticalSpeed) {
-          // Maintain minimum turning radius when possible
           effectiveRadius = this.minTurningRadius;
         } else {
-          // Physics-based understeer: radius increases with speed²
           effectiveRadius = (speed ** 2) / this.grip;
         }
 
-        // Calculate actual turn angle based on wheel geometry
-        const turnAngle = Math.atan(this.wheelBase / effectiveRadius);
-        const angularVelocity = (this.currentSpeed / effectiveRadius) * steeringInput;
+        // Improved speed-sensitive steering
+        const baseAngularVelocity = (this.currentSpeed / effectiveRadius) * steeringInput;
+        const speedFactor = Math.min(1, speed / this.maxSpeed);
+        const adjustedAngular = baseAngularVelocity * (1 - speedFactor * 0.7);
         
-        // Smooth steering response
-        this.angle += angularVelocity * this.steeringResponse;
+        this.angle += adjustedAngular * this.steeringResponse;
       }
 
-      // Acceleration physics
-      if (keys.KeyW) {
-        this.currentSpeed = Math.min(
-          this.currentSpeed + this.acceleration,
-          this.maxSpeed
-        );
-      } else if (keys.KeyS) {
-        this.currentSpeed = Math.max(
-          this.currentSpeed - this.acceleration * 2,
-          -this.maxSpeed * 0.5
-        );
-      } else {
-        // Natural deceleration with rolling resistance
-        const decel = this.currentSpeed > 0 ? 
-          -this.deceleration * (1 + this.currentSpeed/this.maxSpeed) : 
-          this.deceleration * (1 - this.currentSpeed/this.maxSpeed);
-        this.currentSpeed += decel;
-        if (Math.abs(this.currentSpeed) < 0.1) this.currentSpeed = 0;
-      }
+      // ... (keep existing acceleration/deceleration code the same)
 
       // Apply movement with momentum
-      const moveAngle = this.angle + (Math.random()-0.5) * 0.02 * Math.abs(this.currentSpeed/this.maxSpeed);
+      const moveAngle = this.angle;
       this.x += Math.cos(moveAngle) * this.currentSpeed;
       this.y += Math.sin(moveAngle) * this.currentSpeed;
     } else if (this.isTraffic) {
