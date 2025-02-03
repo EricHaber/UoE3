@@ -491,9 +491,7 @@ function isSuburbRoad(x, y) {
 function isRoadTile(x, y) {
   if (x < 0 || y < 0 || x >= map[0].length || y >= map.length) return false;
   const tile = map[y][x];
-  if (tile.biome === 'city') return isCityRoad(x, y);
-  if (tile.biome === 'suburbs') return isSuburbRoad(x, y);
-  return false;
+  return isSuburbRoad(x, y) || isCityRoad(x, y);
 }
 
 function getRoadRotation(x, y) {
