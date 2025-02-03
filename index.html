@@ -512,8 +512,8 @@ function getRoadRotation(x, y) {
   // Determine road type and rotation
   if (count === 4) return { type: 'x', rotation: 0 };
   if (count === 3) { // T-intersection
-    if (!neighbors.up) return { type: 't', rotation: Math.PI };
-    if (!neighbors.down) return { type: 't', rotation: 0 };
+    if (!neighbors.up) return { type: 't', rotation: 0 };
+    if (!neighbors.down) return { type: 't', rotation: Math.PI };
     if (!neighbors.left) return { type: 't', rotation: Math.PI/2 };
     return { type: 't', rotation: -Math.PI/2 };
   }
@@ -526,10 +526,10 @@ function getRoadRotation(x, y) {
     if (neighbors.up && neighbors.right) return { type: 'turn', rotation: -Math.PI/2 };
   }
   if (count === 1) { // Dead end
-    if (neighbors.left) return { type: 'dead_end', rotation: 0 };
-    if (neighbors.right) return { type: 'dead_end', rotation: Math.PI };
-    if (neighbors.up) return { type: 'dead_end', rotation: Math.PI/2 };
-    return { type: 'dead_end', rotation: -Math.PI/2 };
+    if (neighbors.left) return { type: 'dead_end', rotation: Math.PI };
+    if (neighbors.right) return { type: 'dead_end', rotation: 0 };
+    if (neighbors.up) return { type: 'dead_end', rotation: -Math.PI/2 };
+    return { type: 'dead_end', rotation: Math.PI/2 };
   }
   return { type: 'straight', rotation: Math.PI / 2 }; // Default
 }
