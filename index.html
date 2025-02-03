@@ -491,8 +491,8 @@ function getRoadRotation(x, y) {
   if (count === 3) { // T-intersection
     if (!neighbors.up) return { type: 't', rotation: 0 };
     if (!neighbors.down) return { type: 't', rotation: Math.PI };
-    if (!neighbors.left) return { type: 't', rotation: Math.PI/2 };
-    return { type: 't', rotation: -Math.PI/2 };
+    if (!neighbors.left) return { type: 't', rotation: -Math.PI/2 };
+    return { type: 't', rotation: Math.PI/2 };
   }
   if (count === 2) {
     if (neighbors.left && neighbors.right) return { type: 'straight', rotation: 0 };
