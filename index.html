@@ -531,7 +531,7 @@ function drawMap() {
 
       if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
         const tile = map[mapY][mapX];
-        const texture = textures[tile.biome] || textures.grassland;
+        const texture = textures[tile.F] || textures.grassland;
         
         // Only draw base texture here
         ctx.drawImage(
@@ -579,7 +579,7 @@ function drawMap() {
         }
 
         // Draw houses
-        if (tile.hasHouse) {
+        if (tile.hasHouse || (!(isCity || isSuburb) && tile.biome === 'suburbs')) {
           ctx.save();
           const posX = x * tileSize - tileOffsetX;
           const posY = y * tileSize - tileOffsetY;
