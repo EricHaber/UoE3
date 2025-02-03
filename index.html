@@ -573,6 +573,7 @@ function drawMap() {
             tileSize
           );
           ctx.restore();
+          continue;
         }  else if (tile.hasHouse) {
         ctx.save();
         const posX = x * tileSize - tileOffsetX;
