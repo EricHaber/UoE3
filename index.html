@@ -352,33 +352,10 @@ function generateMap() {
 }
 
 function determineHouseRotation(x, y) {
-  // Check all directions within 2 tiles
-  const directions = [
-    { dx: 0, dy: -1, rot: -Math.PI/2 },  // Up
-    { dx: 1, dy: 0, rot: 0 },           // Right
-    { dx: 0, dy: 1, rot: Math.PI/2 },   // Down
-    { dx: -1, dy: 0, rot: Math.PI }     // Left
-  ];
-
-  // Check immediate neighbors first
-  for (let d of directions) {
-    if (isRoadTile(x + d.dx, y + d.dy)) {
-      return d.rot;
-    }
-  }
-
-  // Check wider area if no immediate neighbors
-  for (let radius = 2; radius <= 3; radius++) {
-    for (let d of directions) {
-      if (isRoadTile(x + (d.dx * radius), y + (d.dy * radius))) {
-        return d.rot;
-      }
-    }
-  }
-
-  // Fallback to random rotation if no roads nearby
-  return [0, Math.PI/2, Math.PI, -Math.PI/2][Math.floor(Math.random() * 4)];
+  if(y % 3 === 2) return Math.PI;
+  return 0;
 }
+  
 function getCurrentChunks() {
   const chunks = [];
   const playerChunkX = Math.floor(player.x / CHUNK_SIZE);
@@ -607,34 +584,17 @@ function drawMap() {
           const posX = x * tileSize - tileOffsetX;
           const posY = y * tileSize - tileOffsetY;
           
-          // Draw house base
-          ctx.drawImage(textures.house, posX, posY, tileSize, tileSize);
-          
-          // Draw driveway
-          ctx.save();
+          // Determine house rotation based on nearest road
+          const rotation = determineHouseRotation(mapX, mapY);
           ctx.translate(posX + tileSize/2, posY + tileSize/2);
-          
-          switch(tile.driveway) {
-            case DIRECTION.UP:
-              ctx.rotate(-Math.PI/2);
-              ctx.translate(-tileSize/2, -tileSize/2);
-              break;
-            case DIRECTION.RIGHT:
-              ctx.rotate(0);
-              ctx.translate(-tileSize/2, -tileSize/2);
-              break;
-            case DIRECTION.DOWN:
-              ctx.rotate(Math.PI/2);
-              ctx.translate(-tileSize/2, -tileSize/2);
-              break;
-            case DIRECTION.LEFT:
-              ctx.rotate(Math.PI);
-              ctx.translate(-tileSize/2, -tileSize/2);
-              break;
-          }
-          
-          ctx.drawImage(textures.driveway, 0, 0, tileSize, tileSize);
-          ctx.restore();
+          ctx.rotate(rotation);
+          ctx.drawImage(
+            textures.house,
+            -tileSize/2,
+            -tileSize/2,
+            tileSize,
+            tileSize
+          );
           ctx.restore();
         }
       }
