@@ -352,8 +352,8 @@ function generateMap() {
 }
 
 function determineHouseRotation(x, y) {
-  if(y % 3 === 2) return Math.PI;
-  return 0;
+  if(y % 3 === 1) return Math.PI;
+  else  return 0;
 }
   
 function getCurrentChunks() {
