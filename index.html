@@ -236,8 +236,26 @@ class Car {
         this.angle += adjustedAngular * this.steeringResponse;
       }
 
-      // ... (keep existing acceleration/deceleration code the same)
-
+      // Acceleration physics
+      if (keys.KeyW) {
+        this.currentSpeed = Math.min(
+          this.currentSpeed + this.acceleration,
+          this.maxSpeed
+        );
+      } else if (keys.KeyS) {
+        this.currentSpeed = Math.max(
+          this.currentSpeed - this.acceleration * 2,
+          -this.maxSpeed * 0.5
+        );
+      } else {
+        // Natural deceleration with rolling resistance
+        const decel = this.currentSpeed > 0 ? 
+          -this.deceleration * (1 + this.currentSpeed/this.maxSpeed) : 
+          this.deceleration * (1 - this.currentSpeed/this.maxSpeed);
+        this.currentSpeed += decel;
+        if (Math.abs(this.currentSpeed) < 0.1) this.currentSpeed = 0;
+      }
+      
       // Apply movement with momentum
       const moveAngle = this.angle;
       this.x += Math.cos(moveAngle) * this.currentSpeed;
