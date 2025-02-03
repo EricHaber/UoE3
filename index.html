@@ -523,7 +523,7 @@ function getRoadRotation(x, y) {
     if (neighbors.up) return { type: 'dead_end', rotation: Math.PI/2 };
     return { type: 'dead_end', rotation: -Math.PI/2 };
   }
-  return { type: 'straight', rotation: 0 }; // Default
+  return { type: 'straight', rotation: Math.PI / 2 }; // Default
 }
 
 
