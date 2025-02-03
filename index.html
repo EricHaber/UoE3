@@ -98,7 +98,13 @@ const textures = {
   city: new Image(),
   suburbs: new Image(),
   grassland: new Image(),
-  road: new Image(),
+  road_straight: new Image(),
+  road_turn: new Image(),
+  road_t: new Image(),
+  road_x: new Image(),
+  road_dead_end: new Image(),
+  house: new Image(),
+  driveway: new Image()
 };
 
 // Load textures
@@ -106,8 +112,14 @@ textures.water.src = 'water.png';
 textures.city.src = 'city.png';
 textures.suburbs.src = 'suburbs.png';
 textures.grassland.src = 'grassland.png';
-textures.road.src = 'road.png';
-  
+textures.road_straight.src = 'road_straight.png';
+textures.road_turn.src = 'road_turn.png';
+textures.road_t.src = 'road_t.png';
+textures.road_x.src = 'road_x.png';
+textures.road_dead_end.src = 'road_dead_end.png';
+textures.house.src = 'house.png';
+textures.driveway.src = 'driveway.png';
+
 class Tile {
   constructor(biome, hasHouse = false, driveway = null) {
     this.biome = biome;
@@ -475,21 +487,64 @@ function isSuburbRoad(x, y) {
   const branchCycle = 3;
   return (x % mainCycle === 0) || (y % branchCycle === 0);
 }
+  
+function isRoadTile(x, y) {
+  if (x < 0 || y < 0 || x >= map[0].length || y >= map.length) return false;
+  const tile = map[y][x];
+  if (tile.biome === 'city') return isCityRoad(x, y);
+  if (tile.biome === 'suburbs') return isSuburbRoad(x, y);
+  return false;
+}
+
+function getRoadRotation(x, y) {
+  const neighbors = {
+    left: isRoadTile(x - 1, y),
+    right: isRoadTile(x + 1, y),
+    up: isRoadTile(x, y - 1),
+    down: isRoadTile(x, y + 1)
+  };
+  const count = Object.values(neighbors).filter(v => v).length;
+
+  // Determine road type and rotation
+  if (count === 4) return { type: 'x', rotation: 0 };
+  if (count === 3) { // T-intersection
+    if (!neighbors.up) return { type: 't', rotation: Math.PI };
+    if (!neighbors.down) return { type: 't', rotation: 0 };
+    if (!neighbors.left) return { type: 't', rotation: Math.PI/2 };
+    return { type: 't', rotation: -Math.PI/2 };
+  }
+  if (count === 2) {
+    if (neighbors.left && neighbors.right) return { type: 'straight', rotation: 0 };
+    if (neighbors.up && neighbors.down) return { type: 'straight', rotation: Math.PI/2 };
+    if (neighbors.right && neighbors.down) return { type: 'turn', rotation: 0 };
+    if (neighbors.down && neighbors.left) return { type: 'turn', rotation: Math.PI/2 };
+    if (neighbors.left && neighbors.up) return { type: 'turn', rotation: Math.PI };
+    if (neighbors.up && neighbors.right) return { type: 'turn', rotation: -Math.PI/2 };
+  }
+  if (count === 1) { // Dead end
+    if (neighbors.left) return { type: 'dead_end', rotation: 0 };
+    if (neighbors.right) return { type: 'dead_end', rotation: Math.PI };
+    if (neighbors.up) return { type: 'dead_end', rotation: Math.PI/2 };
+    return { type: 'dead_end', rotation: -Math.PI/2 };
+  }
+  return { type: 'straight', rotation: 0 }; // Default
+}
+
 
 // Draw the map
 function drawMap() {
   const viewWidth = Math.ceil(canvas.width / tileSize);
   const viewHeight = Math.ceil(canvas.height / tileSize);
-
-  // Calculate top-left corner of the visible map in tiles
+  
   const offsetX = player.x - canvas.width / 2;
   const offsetY = player.y - canvas.height / 2;
-
+  
   const startTileX = Math.floor(offsetX / tileSize);
   const startTileY = Math.floor(offsetY / tileSize);
-
+  
   const tileOffsetX = offsetX % tileSize;
   const tileOffsetY = offsetY % tileSize;
+
 
   for (let y = 0; y <= viewHeight; y++) {
     for (let x = 0; x <= viewWidth; x++) {
@@ -500,19 +555,29 @@ function drawMap() {
         const tile = map[mapY][mapX];
         const worldTileX = mapX;
         const worldTileY = mapY;
-
         let texture = textures[tile.biome] || textures.grassland;
-
         let isRoad = false;
-        if (tile.biome === 'city') {
-          isRoad = isCityRoad(worldTileX, worldTileY);
-        } else if (tile.biome === 'suburbs') {
-          isRoad = isSuburbRoad(worldTileX, worldTileY);
-        }
+        
+        if (tile.biome === 'city' && isCityRoad(mapX, mapY)) isRoad = true;
+        if (tile.biome === 'suburbs' && isSuburbRoad(mapX, mapY)) isRoad = true;
 
-      if (isRoad) {
-        texture = textures.road;
-      } else if (tile.hasHouse) {
+        if (isRoad) {
+          const posX = x * tileSize - tileOffsetX;
+          const posY = y * tileSize - tileOffsetY;
+          const roadInfo = getRoadRotation(mapX, mapY);
+
+          ctx.save();
+          ctx.translate(posX + tileSize/2, posY + tileSize/2);
+          ctx.rotate(roadInfo.rotation);
+          ctx.drawImage(
+            textures[`road_${roadInfo.type}`],
+            -tileSize/2,
+            -tileSize/2,
+            tileSize,
+            tileSize
+          );
+          ctx.restore();
+        }  else if (tile.hasHouse) {
         ctx.save();
         const posX = x * tileSize - tileOffsetX;
         const posY = y * tileSize - tileOffsetY;
@@ -547,7 +612,6 @@ function drawMap() {
         ctx.restore();
         ctx.restore();
     }
-
         ctx.drawImage(
           texture,
           x * tileSize - tileOffsetX,
