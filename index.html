@@ -531,17 +531,36 @@ function getRoadRotation(x, y) {
 function drawMap() {
   const viewWidth = Math.ceil(canvas.width / tileSize);
   const viewHeight = Math.ceil(canvas.height / tileSize);
-  
   const offsetX = player.x - canvas.width / 2;
   const offsetY = player.y - canvas.height / 2;
-  
   const startTileX = Math.floor(offsetX / tileSize);
   const startTileY = Math.floor(offsetY / tileSize);
-  
   const tileOffsetX = offsetX % tileSize;
   const tileOffsetY = offsetY % tileSize;
 
+  // First pass: Draw base terrain
+  for (let y = 0; y <= viewHeight; y++) {
+    for (let x = 0; x <= viewWidth; x++) {
+      const mapX = startTileX + x;
+      const mapY = startTileY + y;
 
+      if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
+        const tile = map[mapY][mapX];
+        const texture = textures[tile.biome] || textures.grassland;
+        
+        // Only draw base texture here
+        ctx.drawImage(
+          texture,
+          x * tileSize - tileOffsetX,
+          y * tileSize - tileOffsetY,
+          tileSize,
+          tileSize
+        );
+      }
+    }
+  }
+
+  // Second pass: Draw roads and houses
   for (let y = 0; y <= viewHeight; y++) {
     for (let x = 0; x <= viewWidth; x++) {
       const mapX = startTileX + x;
@@ -551,13 +570,12 @@ function drawMap() {
         const tile = map[mapY][mapX];
         const worldTileX = mapX;
         const worldTileY = mapY;
-        let texture = textures[tile.biome] || textures.grassland;
-        let isRoad = false;
-        
-        if (tile.biome === 'city' && isCityRoad(mapX, mapY)) isRoad = true;
-        if (tile.biome === 'suburbs' && isSuburbRoad(mapX, mapY)) isRoad = true;
 
-        if (isRoad) {
+        // Draw roads
+        const isCity = tile.biome === 'city' && isCityRoad(mapX, mapY);
+        const isSuburb = tile.biome === 'suburbs' && isSuburbRoad(mapX, mapY);
+        
+        if (isCity || isSuburb) {
           const posX = x * tileSize - tileOffsetX;
           const posY = y * tileSize - tileOffsetY;
           const roadInfo = getRoadRotation(mapX, mapY);
@@ -573,49 +591,44 @@ function drawMap() {
             tileSize
           );
           ctx.restore();
-          continue;
-        }  else if (tile.hasHouse) {
-        ctx.save();
-        const posX = x * tileSize - tileOffsetX;
-        const posY = y * tileSize - tileOffsetY;
-        
-        // Draw house base
-        ctx.drawImage(textures.house, posX, posY, tileSize, tileSize);
-        
-        // Draw driveway
-        ctx.save();
-        ctx.translate(posX + tileSize/2, posY + tileSize/2);
-        
-        switch(tile.driveway) {
-            case DIRECTION.UP:
-                ctx.rotate(-Math.PI/2);
-                ctx.translate(-tileSize/2, -tileSize/2);
-                break;
-            case DIRECTION.RIGHT:
-                ctx.rotate(0);
-                ctx.translate(-tileSize/2, -tileSize/2);
-                break;
-            case DIRECTION.DOWN:
-                ctx.rotate(Math.PI/2);
-                ctx.translate(-tileSize/2, -tileSize/2);
-                break;
-            case DIRECTION.LEFT:
-                ctx.rotate(Math.PI);
-                ctx.translate(-tileSize/2, -tileSize/2);
-                break;
         }
-        
-        ctx.drawImage(textures.driveway, 0, 0, tileSize, tileSize);
-        ctx.restore();
-        ctx.restore();
-    }
-        ctx.drawImage(
-          texture,
-          x * tileSize - tileOffsetX,
-          y * tileSize - tileOffsetY,
-          tileSize,
-          tileSize
-        );
+
+        // Draw houses
+        if (tile.hasHouse) {
+          ctx.save();
+          const posX = x * tileSize - tileOffsetX;
+          const posY = y * tileSize - tileOffsetY;
+          
+          // Draw house base
+          ctx.drawImage(textures.house, posX, posY, tileSize, tileSize);
+          
+          // Draw driveway
+          ctx.save();
+          ctx.translate(posX + tileSize/2, posY + tileSize/2);
+          
+          switch(tile.driveway) {
+            case DIRECTION.UP:
+              ctx.rotate(-Math.PI/2);
+              ctx.translate(-tileSize/2, -tileSize/2);
+              break;
+            case DIRECTION.RIGHT:
+              ctx.rotate(0);
+              ctx.translate(-tileSize/2, -tileSize/2);
+              break;
+            case DIRECTION.DOWN:
+              ctx.rotate(Math.PI/2);
+              ctx.translate(-tileSize/2, -tileSize/2);
+              break;
+            case DIRECTION.LEFT:
+              ctx.rotate(Math.PI);
+              ctx.translate(-tileSize/2, -tileSize/2);
+              break;
+          }
+          
+          ctx.drawImage(textures.driveway, 0, 0, tileSize, tileSize);
+          ctx.restore();
+          ctx.restore();
+        }
       }
     }
   }
