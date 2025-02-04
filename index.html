@@ -55,16 +55,16 @@ const npcs = [];
 let currentInteractingNPC = null;
 const NPC_UPDATE_INTERVAL = 5000; // Update NPC behavior every 5 seconds
 const DIALOGUE_RANGE = 100; // Distance for conversation
-import { API_KEY } from "./Node.js";
-console.log("API Key:", API_KEY);
+const API_KEY = 1;
 
+//console.log("API Key:", API_KEY);
   
 const storyState = {
   cityMood: "calm",
   recentEvents: [],
   playerReputation: 0
 };
-  
+
 canvas.width = 1920; // Fixed viewport size
 canvas.height = 1080;
 
