@@ -15,7 +15,11 @@ jobs:
 
       - name: Install Dependencies (prod)
         run: yarn install --frozen-lockfile --production
-
+        
+      - name: Replace API Key in config.js
+        run: |
+          sed -i 's|__API_KEY__|${{ secrets.API_KEY }}|g' config.js
+          
       - name: Run Tests (JEST).
         run: node -e "console.log(process.env.OPENAIKEY)"
         env:
