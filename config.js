@@ -1,2 +1,2 @@
-const API_KEY = process.env.OPENAIKEY; // This will be replaced
+const API_KEY = "placeholder"; // This will be replaced
 export { API_KEY };
