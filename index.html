@@ -51,6 +51,9 @@ const traffic = [];
 const HOUSE_PROBABILITY = 0.3;
 const CHUNK_SIZE = 1000; // World units
 const loadedChunks = new Set();
+const npcs = [];
+let currentInteractingNPC = null;
+
   
 canvas.width = 1920; // Fixed viewport size
 canvas.height = 1080;
@@ -125,6 +128,158 @@ class Tile {
     this.biome = biome;
     this.hasHouse = hasHouse;
     this.driveway = driveway;
+  }
+}
+  
+class NPC {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.name = this.generateName();
+    this.personality = this.generatePersonality();
+    this.currentAction = "wandering";
+    this.destination = this.getRandomDestination();
+    this.conversationHistory = [];
+    this.lastAIUpdate = 0;
+    this.speed = 0.5;
+    this.interactionCooldown = 0;
+  }
+
+  generateName() {
+    const names = ["Alex", "Sam", "Jordan", "Taylor", "Casey"];
+    return names[Math.floor(Math.random() * names.length)];
+  }
+
+  generatePersonality() {
+    const traits = {
+      openness: Math.random(),
+      conscientiousness: Math.random(),
+      extraversion: Math.random(),
+      agreeableness: Math.random(),
+      neuroticism: Math.random()
+    };
+    return traits;
+  }
+
+  async updateBehavior() {
+    if (Date.now() - this.lastAIUpdate > NPC_UPDATE_INTERVAL) {
+      try {
+        const prompt = `In a city that's currently ${storyState.cityMood}, ${this.name}, who is ${this.describePersonality()}, is currently ${this.currentAction}. Recent events: ${storyState.recentEvents.join(", ")}. What should they do next? Respond with ONLY a JSON object containing: {action: "string", destination: {x: number, y: number}, mood: "string"}`;
+        
+        const response = await this.queryOpenAI(prompt);
+        const behavior = JSON.parse(response);
+        
+        this.currentAction = behavior.action;
+        this.destination = behavior.destination;
+        this.lastAIUpdate = Date.now();
+        
+        if(behavior.mood) {
+          this.mood = behavior.mood;
+        }
+      } catch (error) {
+        console.error("AI behavior error:", error);
+      }
+    }
+  }
+
+  describePersonality() {
+    return `openness ${this.personality.openness.toFixed(2)}, conscientiousness ${this.personality.conscientiousness.toFixed(2)}, extraversion ${this.personality.extraversion.toFixed(2)}, agreeableness ${this.personality.agreeableness.toFixed(2)}, neuroticism ${this.personality.neuroticism.toFixed(2)}`;
+  }
+
+  async queryOpenAI(prompt) {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "gpt-3.5-turbo",
+        messages: [{
+          role: "user",
+          content: prompt
+        }],
+        temperature: 0.7,
+        max_tokens: 150
+      })
+    });
+
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+  }
+
+  update() {
+    // Movement towards destination
+    const dx = this.destination.x - this.x;
+    const dy = this.destination.y - this.y;
+    const distance = Math.sqrt(dx*dx + dy*dy);
+
+    if(distance > 10) {
+      this.x += (dx/distance) * this.speed;
+      this.y += (dy/distance) * this.speed;
+    } else {
+      this.destination = this.getRandomDestination();
+    }
+
+    if(this.interactionCooldown > 0) this.interactionCooldown--;
+  }
+
+  getRandomDestination() {
+    return {
+      x: this.x + (Math.random() - 0.5) * 500,
+      y: this.y + (Math.random() - 0.5) * 500
+    };
+  }
+
+  async generateDialogue(playerInput = null) {
+    try {
+      const prompt = this.createDialoguePrompt(playerInput);
+      const response = await this.queryOpenAI(prompt);
+      return this.processAIResponse(response);
+    } catch (error) {
+      console.error("Dialogue error:", error);
+      return {text: "I can't talk right now.", options: []};
+    }
+  }
+
+  createDialoguePrompt(playerInput) {
+    return `In a ${storyState.cityMood} city, ${this.name} (${this.describePersonality()}) is talking to a player with reputation ${storyState.playerReputation}. 
+    Previous conversation: ${this.conversationHistory.slice(-3).join(" | ")}
+    ${playerInput ? `Player says: "${playerInput}"` : "Player initiates conversation"}
+    Generate natural dialogue response and up to 3 options. Respond ONLY with JSON: {text: "string", options: ["string"], storyEffects: {}}`;
+  }
+
+  processAIResponse(response) {
+    try {
+      const data = JSON.parse(response);
+      if(data.storyEffects) {
+        Object.assign(storyState, data.storyEffects);
+        if(data.storyEffects.recentEvents) {
+          storyState.recentEvents.push(data.storyEffects.recentEvents);
+          if(storyState.recentEvents.length > 5) storyState.recentEvents.shift();
+        }
+      }
+      return data;
+    } catch {
+      return {text: response, options: []};
+    }
+  }
+
+  draw(ctx, playerX, playerY) {
+    const screenX = this.x - playerX + canvas.width/2;
+    const screenY = this.y - playerY + canvas.height/2;
+    
+    // Draw NPC
+    ctx.fillStyle = '#00FF00';
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw name
+    ctx.fillStyle = 'white';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(this.name, screenX, screenY - 12);
   }
 }
 
@@ -401,6 +556,37 @@ function generateTraffic() {
     }
   }, 3000);
 }
+async function selectOption(index) {
+  const optionText = document.querySelectorAll('.dialogue-option')[index].innerText;
+  const response = await currentInteractingNPC.generateDialogue(optionText);
+  
+  const content = document.getElementById('dialogueContent');
+  content.innerHTML = `
+    <p><strong>You:</strong> ${optionText}</p>
+    <p><strong>${currentInteractingNPC.name}:</strong> ${response.text}</p>
+    ${response.options.map((opt, i) => `
+      <div class="dialogue-option" onclick="selectOption(${i})">${opt}</div>
+    `).join('')}
+  `;
+
+  currentInteractingNPC.conversationHistory.push(optionText);
+  currentInteractingNPC.conversationHistory.push(response.text);
+  
+  if(response.options.length === 0) {
+    endDialogue();
+  }
+}
+
+function endDialogue() {
+  document.getElementById('dialogueBox').style.display = 'none';
+  currentInteractingNPC.interactionCooldown = 300;
+  currentInteractingNPC = null;
+  document.removeEventListener('keydown', handleDialogueKey);
+}
+
+function handleDialogueKey(e) {
+  if(e.code === 'Escape') endDialogue();
+}
 
 function toggleMenu() {
   const menu = document.getElementById('phoneMenu');
@@ -455,7 +641,14 @@ function spawnCar(type) {
   toggleMenu();
 }
 
-
+function initializeNPCs() {
+  for(let i = 0; i < 20; i++) {
+    npcs.push(new NPC(
+      Math.random() * mapWidth,
+      Math.random() * mapHeight
+    ));
+  }
+}
 // Road logic
 function isCityRoad(x, y) {
   const cycle = 6;
@@ -605,7 +798,7 @@ function drawMap() {
 // Game loop
 function gameLoop() {
   
-
+  
   if (keys.KeyM) toggleMenu();
 
 
@@ -657,7 +850,25 @@ function gameLoop() {
   // Draw cars
   traffic.forEach(car => car.draw(ctx, player.x, player.y));
   cars.forEach(car => car.draw(ctx, player.x, player.y));
+  npcs.forEach(npc => {
+    npc.update();
+    if(Date.now() - npc.lastAIUpdate > NPC_UPDATE_INTERVAL) {
+      npc.updateBehavior();
+    }
+  });
+  
+  if(!currentInteractingNPC && player.visible) {
+    npcs.forEach(npc => {
+      const distance = Math.hypot(npc.x - player.x, npc.y - player.y);
+      if(distance < DIALOGUE_RANGE && npc.interactionCooldown === 0) {
+        startDialogue(npc);
+      }
+    });
+  }
 
+
+  // Draw NPCs
+  npcs.forEach(npc => npc.draw(ctx, player.x, player.y));
   // Draw player if visible
   if (player.visible) {
     ctx.fillStyle = '#ff0000';
