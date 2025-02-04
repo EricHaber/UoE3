@@ -55,12 +55,8 @@ const npcs = [];
 let currentInteractingNPC = null;
 const NPC_UPDATE_INTERVAL = 5000; // Update NPC behavior every 5 seconds
 const DIALOGUE_RANGE = 100; // Distance for conversation
-fetch("/get-api-key")
-  .then(response => response.json())
-  .then(data => {
-  console.log("API Key:", data.apiKey);
-  const API_KEY = data.apiKey
-});
+import { API_KEY } from "./config.js";
+
   
 const storyState = {
   cityMood: "calm",
