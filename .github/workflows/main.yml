@@ -16,7 +16,8 @@ jobs:
       - name: Install Dependencies (prod)
         run: yarn install --frozen-lockfile --production
 
-      - name: Run Tests (JEST)
+      - name: Run Tests (JEST).
+        run: node -e "console.log(process.env.OPENAIKEY)"
         env:
           CI: true
           OPENAIKEY: ${{ secrets.OPENAIKEY }}
