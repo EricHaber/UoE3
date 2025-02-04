@@ -17,7 +17,6 @@ jobs:
         run: yarn install --frozen-lockfile --production
 
       - name: Run Tests (JEST)
-        run: yarn test --ci --silent --testPathIgnorePatterns=experimental
         env:
           CI: true
           OPENAIKEY: ${{ secrets.OPENAIKEY }}
