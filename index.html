@@ -53,7 +53,14 @@ const CHUNK_SIZE = 1000; // World units
 const loadedChunks = new Set();
 const npcs = [];
 let currentInteractingNPC = null;
-
+const OPENAI_API_KEY = secrets.OPENAIKEY ;
+const NPC_UPDATE_INTERVAL = 5000; // Update NPC behavior every 5 seconds
+const DIALOGUE_RANGE = 100; // Distance for conversation
+const storyState = {
+  cityMood: "calm",
+  recentEvents: [],
+  playerReputation: 0
+};
   
 canvas.width = 1920; // Fixed viewport size
 canvas.height = 1080;
