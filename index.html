@@ -53,9 +53,15 @@ const CHUNK_SIZE = 1000; // World units
 const loadedChunks = new Set();
 const npcs = [];
 let currentInteractingNPC = null;
-const OPENAI_API_KEY = process.env.API_KEY;
 const NPC_UPDATE_INTERVAL = 5000; // Update NPC behavior every 5 seconds
 const DIALOGUE_RANGE = 100; // Distance for conversation
+fetch("/get-api-key")
+  .then(response => response.json())
+  .then(data => {
+  console.log("API Key:", data.apiKey);
+  const API_KEY = data.apiKey
+});
+  
 const storyState = {
   cityMood: "calm",
   recentEvents: [],
@@ -198,7 +204,7 @@ class NPC {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${API_KEY}`
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
