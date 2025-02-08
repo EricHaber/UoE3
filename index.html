@@ -12,31 +12,201 @@
       right: 20px;
       width: 300px;
       height: 500px;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.9);
       color: white;
       display: none;
-      padding: 20px;
-      border-radius: 10px;
+      flex-direction: column;
+      border-radius: 15px;
+      padding: 15px;
+      z-index: 1000;
+      border: 1px solid #333;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
     }
+
     .menu-item { 
-      padding: 10px; 
-      margin: 5px;
-      background: #333;
+      padding: 10px;
+      margin: 5px 0;
+      background: #2d2d2d;
+      border-radius: 10px;
       cursor: pointer;
+      transition: background 0.2s;
     }
+
+    .menu-item:hover {
+      background: #3d3d3d;
+    }
+    /* Chat Interface */
+    
+    #closePhoneMenu {
+      color: #ff4444;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 10px;
+    }
+
+    #phoneMenuHeader {
+      padding: 0;
+      margin: 0 0 15px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+  #chatContainer {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 350px;
+    height: 500px;
+    background: rgba(0,0,0,0.9);
+    border-radius: 15px;
+    display: none;
+    flex-direction: column;
+    color: white;
+    border: 1px solid #333;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    z-index: 1000;
+  }
+
+  #chatHeader {
+    padding: 15px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #closeChat {
+    color: #ff4444;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0 10px;
+  }
+
+  #chatMessages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .message {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    animation: messageAppear 0.3s ease;
+  }
+
+  .npc-message {
+    background: #2d2d2d;
+    align-self: flex-start;
+  }
+
+  .player-message {
+    background: #0078d4;
+    align-self: flex-end;
+  }
+
+  #chatInputContainer {
+    padding: 15px;
+    border-top: 1px solid #333;
+  }
+
+  #chatInput {
+    width: 100%;
+    padding: 10px;
+    border-radius: 25px;
+    border: none;
+    background: #1e1e1e;
+    color: white;
+  }
+
+  /* Phone Contacts */
+  #phoneContacts {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    height: 500px;
+    background: rgba(0,0,0,0.9);
+    display: none;
+    flex-direction: column;
+    border-radius: 15px;
+    padding: 15px;
+    z-index: 1001;
+  }
+
+  .contact {
+    padding: 10px;
+    margin: 5px 0;
+    background: #2d2d2d;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .contact:hover {
+    background: #3d3d3d;
+  }
+
+  @keyframes messageAppear {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   </style>
 </head>
 <body>
 <canvas id="gameCanvas"></canvas>
-  
+ 
+<div id="dialogueBox" style="display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; max-width: 500px;">
+  <div id="dialogueContent"></div>
+  <div id="dialogueOptions" style="margin-top: 10px;"></div>
+  <input type="text" id="playerInput" style="margin-top: 10px; width: 100%; display: none;">
+  <button onclick="sendPlayerMessage()" style="margin-top: 5px; display: none;">Send</button>
+</div>
+
 <div id="phoneMenu">
-  <h3>Phone</h3>
+  <div id="phoneMenuHeader">
+    <h3 style="margin: 0;">Phone</h3>
+    <div id="closePhoneMenu" onclick="togglePhoneMenu()">×</div>
+  </div>
   <div class="menu-item" onclick="spawnCar('sedan')">Spawn Sedan</div>
   <div class="menu-item" onclick="spawnCar('sports')">Spawn Sports Car</div>
   <div class="menu-item" onclick="spawnCar('truck')">Spawn Truck</div>
+  <div class="menu-item" onclick="showContacts()">Contacts</div>
 </div>
 
-<script type="module">
+<div id="chatContainer">
+  <div id="chatHeader">
+    <span id="chatTitle">Conversation</span>
+    <div id="closeChat">×</div>
+  </div>
+  <div id="chatMessages"></div>
+  <div id="chatInputContainer">
+    <input type="text" id="chatInput" placeholder="Type your message...">
+  </div>
+</div>
+
+<div id="phoneContacts">
+  <div id="phoneContactsHeader">
+    <h3 style="margin: 0;">Contacts</h3>
+    <div id="closeContacts" onclick="toggleContacts()">×</div>
+  </div>
+  <div id="contactsList"></div>
+</div>
+
+<div id="miniMap" style="position: fixed; top: 20px; right: 20px; width: 200px; height: 200px; background: rgba(0,0,0,0.8); border: 2px solid #fff;">
+  <canvas id="mapCanvas"></canvas>
+</div>
+
+<div id="fullMap" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999;">
+  <canvas id="fullMapCanvas"></canvas>
+  <div style="position: absolute; top: 20px; right: 20px; color: white; cursor: pointer;" onclick="toggleFullMap()">×</div>
+</div>
+
+<script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const mapWidth = 300000;
@@ -55,7 +225,10 @@ const npcs = [];
 let currentInteractingNPC = null;
 const NPC_UPDATE_INTERVAL = 5000; // Update NPC behavior every 5 seconds
 const DIALOGUE_RANGE = 100; // Distance for conversation
-const API_KEY = 1;
+const API_KEY = "Your OPEN AI API Key";
+
+
+
 
 //console.log("API Key:", API_KEY);
   
@@ -78,32 +251,204 @@ const player = {
   currentVehicle: null
 };
 
+const CORE_NPCS = [
+  {
+    name: "Mayor Evelyn Cross",
+    role: "City Mayor",
+    faction: "Government",
+    personality: "Charismatic reformer pushing urban development",
+    knowledge: ["City Budget", "Infrastructure Plans"],
+    x: player.x + 500,  // Near starting position
+    y: player.y + 500
+  },
+  {
+    name: "Dr. Rajesh Verma",
+    role: "Climate Scientist",
+    faction: "University",
+    personality: "Anxious researcher tracking ecological changes",
+    knowledge: ["Climate Data", "Renewable Energy"],
+    x: player.x - 500,
+    y: player.y - 500
+  }
+];
+
+const NPC_TEMPLATES = [
+  // Government Faction
+  {
+    name: "Councilwoman Diane Hartman",
+    role: "Urban Development Director",
+    faction: "Government",
+    personality: "Driven technocrat obsessed with modernization",
+    knowledge: ["Zoning Laws", "Public Contracts"],
+    keyValue: "Progress at any cost",
+    secret: "Taking kickbacks from construction firms"
+  },
+  {
+    name: "Agent Marcus Cole",
+    role: "Public Safety Commissioner",
+    faction: "Government",
+    personality: "Paranoid former military strategist",
+    knowledge: ["Surveillance Networks", "Gang Activity"],
+    keyValue: "Order above all else",
+    secret: "Maintains blacksite prison facilities"
+  },
+
+  // University Faction
+  {
+    name: "Dr. Elara Voss",
+    role: "AI Ethics Professor",
+    faction: "University",
+    personality: "Idealistic but pragmatic philosopher",
+    knowledge: ["Machine Learning", "Neuroethics"],
+    keyValue: "Prevent technological dystopia",
+    secret: "Developing unauthorized AI models"
+  },
+  {
+    name: "Liam Chen",
+    role: "Student Union Leader",
+    faction: "University", 
+    personality: "Charismatic activist with trust issues",
+    knowledge: ["Protest Tactics", "University Finances"],
+    keyValue: "Student power movement",
+    secret: "Funding from anonymous donor"
+  },
+
+  // Press Faction
+  {
+    name: "Victoria Pryce",
+    role: "Investigative Journalist",
+    faction: "Press",
+    personality: "Cynical truth-seeker with alcohol problem",
+    knowledge: ["Political Scandals", "Corporate Espionage"],
+    keyValue: "Destroy corrupt institutions",
+    secret: "Being blackmailed by mayor's office"
+  },
+  {
+    name: "Omar Khalid",
+    role: "Tech Reporter",
+    faction: "Press",
+    personality: "Obsessive gadget enthusiast",
+    knowledge: ["Emerging Tech", "Startup Culture"],
+    keyValue: "Technological utopianism",
+    secret: "Running illegal darknet review site"
+  },
+
+  // Public Works Faction
+  {
+    name: "Ingrid Bjornsson",
+    role: "Waste Management Chief",
+    faction: "Public Works",
+    personality: "No-nonsense efficiency expert",
+    knowledge: ["Recycling Systems", "Underground Tunnels"],
+    keyValue: "Keep city functioning smoothly",
+    secret: "Black market disposal service"
+  },
+  {
+    name: "Dr. Kwame Nkosi",
+    role: "Environmental Impact Officer",
+    faction: "Public Works",
+    personality: "Guilt-ridden former oil executive",
+    knowledge: ["Pollution Data", "Green Tech"],
+    keyValue: "Ecological redemption",
+    secret: "Faking emission reports"
+  },
+
+  // Criminal Faction
+  {
+    name: "Nikolai 'The Tailor' Volkov",
+    role: "Forgery Specialist",
+    faction: "Criminal",
+    personality: "Perfectionist with artistic temperament",
+    knowledge: ["Document Systems", "Security Features"],
+    keyValue: "Craftsmanship in illegality",
+    secret: "Police informant"
+  },
+  {
+    name: "Jiao Long",
+    role: "Cybercrime Broker",
+    faction: "Criminal",
+    personality: "Paranoid digital anarchist",
+    knowledge: ["Darknet Markets", "Encryption Systems"],
+    keyValue: "Information wants to be free",
+    secret: "Working on dead man's switch"
+  },
+
+  // Neutral/Cross-Faction
+  {
+    name: "Reverend Micah Blake",
+    role: "Community Leader",
+    faction: "Neutral",
+    personality: "Empathetic mediator with dark past",
+    knowledge: ["Gang Territories", "Social Programs"],
+    keyValue: "Urban reconciliation",
+    secret: "Former drug kingpin"
+  },
+  {
+    name: "Kira 'Ghost' Nakamura",
+    role: "Urban Explorer",
+    faction: "Neutral",
+    personality: "Adrenaline-junkie historian",
+    knowledge: ["Abandoned Sites", "City Archives"],
+    keyValue: "Preserve hidden history",
+    secret: "Found doomsday bunker"
+  },
+  {
+    name: "The Architect",
+    role: "Mysterious Benefactor",
+    faction: "Unknown",
+    personality: "Cryptic master manipulator",
+    knowledge: ["City Blueprints", "Secret Projects"],
+    keyValue: "Social experimentation",
+    secret: "AI controlling multiple identities"
+  }
+];
+
 const keys = {
   ArrowUp: false,
   ArrowDown: false,
   ArrowLeft: false,
   ArrowRight: false,
+  KeyW: false,
+  KeyA: false,
+  KeyS: false,
+  KeyD: false,
+  KeyF: false,
+  KeyP: false,
+  Enter: false
 };
+
+
+document.addEventListener('keydown', (e) => {
+
+//  if(e.code === 'KeyE') handleInteractionKey();
+  if(e.code === 'Enter' && currentInteractingNPC) sendPlayerMessage();
+});
+
 
 document.addEventListener('keydown', (e) => {
   keys[e.code] = true;
+  if(e.code === 'KeyP') {
+    toggleMenu();
+  }
+  const enterRange = 50;
+    const nearbyCar = [...cars, ...traffic].find(car => 
+      !car.driver &&
+      Math.abs(car.x - player.x) < enterRange &&
+      Math.abs(car.y - player.y) < enterRange
+    );
+  if(e.code === 'KeyF' && nearbyCar) nearbyCar.enter(player);
+  else if(e.code === 'KeyF' && player.currentVehicle) player.currentVehicle.exit();
+  
+  if(e.code === 'KeyE') handleInteractionKey();
+  if(e.code === 'Enter' && currentInteractingNPC) sendPlayerMessage();
+  if(e.code === 'KeyM')toggleFullMap();
 });
-
 document.addEventListener('keyup', (e) => {
   keys[e.code] = false;
 });
-document.addEventListener('keydown', (e) => {
-  if (e.code === 'KeyF') keys.KeyF = true;
-});
-document.addEventListener('keyup', (e) => {
-  if (e.code === 'KeyF') keys.KeyF = false;
-});
-document.addEventListener('keydown', (e) => {
-  if (e.code === 'KeyM') keys.KeyM = true;
-});
-document.addEventListener('keyup', (e) => {
-  if (e.code === 'KeyM') keys.KeyM = false;
-});
+
+
+
 
 // Textures
 const textures = {
@@ -141,19 +486,62 @@ class Tile {
   }
 }
   
-class NPC {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    this.name = this.generateName();
-    this.personality = this.generatePersonality();
-    this.currentAction = "wandering";
-    this.destination = this.getRandomDestination();
-    this.conversationHistory = [];
-    this.lastAIUpdate = 0;
-    this.speed = 0.5;
-    this.interactionCooldown = 0;
+class ConversationManager {
+  constructor() {
+    this.currentNPC = null;
+    this.isWaiting = false;
   }
+
+  async start(npc) {
+    this.currentNPC = npc;
+    this.showDialogue(`<p><strong>${npc.name}:</strong> ${await this.getGreeting()}</p>`);
+  }
+
+  async getGreeting() {
+    const response = await this.currentNPC.queryOpenAI(
+      `Generate greeting from ${this.currentNPC.name} (${this.currentNPC.role})`
+    );
+    return response;
+  }
+
+  async sendMessage(message) {
+    if(this.isWaiting) return;
+    
+    this.isWaiting = true;
+    const response = await this.currentNPC.generateResponse(message);
+    this.showResponse(response);
+    this.isWaiting = false;
+  }
+
+  async end() {
+    const worldUpdate = await this.currentNPC.generateWorldUpdate();
+    this.applyWorldUpdate(worldUpdate);
+    this.currentNPC = null;
+  }
+
+  // Add showDialogue, showResponse, applyWorldUpdate methods
+}
+
+class NPC {
+  constructor(roleData) {
+    this.x = roleData.x;
+    this.y = roleData.y;
+    this.name = roleData.name;
+    this.role = roleData.role;
+    this.faction = roleData.faction;
+    this.personality = roleData.personality;
+    this.knowledge = roleData.knowledge;
+    this.conversationHistory = [];
+    this.interactionCooldown = 0;
+    this.speed = 0.5;
+    this.destination = this.getRandomDestination();
+    this.city = 0;//city;
+    this.currentPath = [];
+    this.isMoving = false;
+    this.lastKnownPosition = { x: roleData.x, y: roleData.y };
+    this.isInConversation = false;
+  }
+
 
   generateName() {
     const names = ["Alex", "Sam", "Jordan", "Taylor", "Casey"];
@@ -169,6 +557,18 @@ class NPC {
       neuroticism: Math.random()
     };
     return traits;
+  }
+
+  async generateResponse(message) {
+    // Add to conversation history
+    this.conversationHistory.push(['player', message]);
+    
+    const response = await this.queryOpenAI(
+      `Respond as ${this.name} to: "${message}". Keep it under 2 sentences.`
+    );
+    
+    this.conversationHistory.push(['npc', response]);
+    return response;
   }
 
   async updateBehavior() {
@@ -217,22 +617,13 @@ class NPC {
     const data = await response.json();
     return data.choices[0].message.content.trim();
   }
-
-  update() {
-    // Movement towards destination
-    const dx = this.destination.x - this.x;
-    const dy = this.destination.y - this.y;
-    const distance = Math.sqrt(dx*dx + dy*dy);
-
-    if(distance > 10) {
-      this.x += (dx/distance) * this.speed;
-      this.y += (dy/distance) * this.speed;
-    } else {
-      this.destination = this.getRandomDestination();
-    }
-
-    if(this.interactionCooldown > 0) this.interactionCooldown--;
+  generateNewPath() {
+    // Get road edge nodes from current tile
+    //const currentTile = this.getCurrentTile();
+    //this.currentPath = currentTile.getSidewalkPath();
+    return 1;
   }
+
 
   getRandomDestination() {
     return {
@@ -274,22 +665,51 @@ class NPC {
       return {text: response, options: []};
     }
   }
+  async generateWorldUpdate() {
+    const prompt = `Generate world changes based on conversation with ${this.name}. 
+    Current state: ${storyState.cityMood}, Recent events: ${storyState.recentEvents.join(", ")}`;
+    
+    const update = await this.queryOpenAI(prompt);
+    return JSON.parse(update);
+  }
 
   draw(ctx, playerX, playerY) {
     const screenX = this.x - playerX + canvas.width/2;
     const screenY = this.y - playerY + canvas.height/2;
     
-    // Draw NPC
-    ctx.fillStyle = '#00FF00';
-    ctx.beginPath();
-    ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
-    ctx.fill();
+    // Only draw if in view
+    if (Math.abs(screenX) < canvas.width * 1.5 && Math.abs(screenY) < canvas.height * 1.5) {
+      ctx.fillStyle = '#00FF00';
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw name
+      ctx.fillStyle = 'white';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(this.name, screenX, screenY - 12);
+    }
+  }
+
+  update() {
+    if(this.isInConversation) return;
     
-    // Draw name
-    ctx.fillStyle = 'white';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(this.name, screenX, screenY - 12);
+    // Pathfinding along road edges
+    if(this.currentPath.length === 0) {
+      this.getRandomDestination(); //generateNewPath();
+    } else {
+      const nextNode = this.currentPath[0];
+      const dx = nextNode.x - this.x;
+      const dy = nextNode.y - this.y;
+      
+      if(Math.hypot(dx, dy) < 5) {
+        this.currentPath.shift();
+      } else {
+        this.x += (dx / Math.hypot(dx, dy)) * this.speed;
+        this.y += (dy / Math.hypot(dx, dy)) * this.speed;
+      }
+    }
   }
 }
 
@@ -391,8 +811,8 @@ class Car {
     if (this.active && this.driver) {
       // Steering physics
       let steeringInput = 0;
-      if (keys.KeyA) steeringInput -= 1;
-      if (keys.KeyD) steeringInput += 1;
+      if (keys.KeyA || keys.ArrowLeft) steeringInput -= 1;
+      if (keys.KeyD || keys.ArrowRight) steeringInput += 1;
 
       if (steeringInput !== 0 && this.currentSpeed !== 0) {
         const speed = Math.abs(this.currentSpeed);
@@ -414,12 +834,12 @@ class Car {
       }
 
       // Acceleration physics
-      if (keys.KeyW) {
+      if (keys.KeyW || keys.ArrowUp) {
         this.currentSpeed = Math.min(
           this.currentSpeed + this.acceleration,
           this.maxSpeed
         );
-      } else if (keys.KeyS) {
+      } else if (keys.KeyS || keys.ArrowDown) {
         this.currentSpeed = Math.max(
           this.currentSpeed - this.acceleration * 2,
           -this.maxSpeed * 0.5
@@ -456,7 +876,227 @@ class Car {
     }
   }
 }
+
+class ChatSystem {
+  constructor() {
+    this.knownNPCs = new Map();
+    this.currentChat = null;
+    
+    // Event Listeners
+    document.getElementById('closeChat').addEventListener('click', () => this.closeChat());
+    document.getElementById('chatInput').addEventListener('keypress', (e) => {
+      if(e.key === 'Enter') this.sendMessage();
+    });
+    
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape') this.closeChat();
+      if(e.key === 'KeyP' && !this.currentChat) this.togglePhoneContacts();
+    });
+  }
+
+  startChat(npc) {
+    this.currentChat = npc;
+    if(!this.knownNPCs.has(npc.name)) {
+      this.knownNPCs.set(npc.name, npc);
+      this.updateContacts();
+    }
+    
+    document.getElementById('chatContainer').style.display = 'flex';
+    document.getElementById('chatTitle').textContent = npc.name;
+    this.loadHistory(npc);
+  }
+
+  async sendMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if(!message) return;
+
+    // Add player message
+    this.addMessage(message, 'player');
+    input.value = '';
+
+    // Get NPC response
+    const response = await this.currentChat.generateResponse(message);
+    this.addMessage(response, 'npc');
+  }
+
+  addMessage(text, sender) {
+    const messages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    messageDiv.textContent = text;
+    messages.appendChild(messageDiv);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  loadHistory(npc) {
+    const messages = document.getElementById('chatMessages');
+    messages.innerHTML = '';
+    npc.conversationHistory.forEach(([type, text]) => {
+      this.addMessage(text, type === 'player' ? 'player' : 'npc');
+    });
+  }
+
+  closeChat() {
+    document.getElementById('chatContainer').style.display = 'none';
+    this.currentChat = null;
+  }
+
+  togglePhoneContacts() {
+    const contacts = document.getElementById('phoneContacts');
+    contacts.style.display = contacts.style.display === 'none' ? 'flex' : 'none';
+  }
+
+  updateContacts() {
+    const list = document.getElementById('contactsList');
+    list.innerHTML = '';
+    
+    this.knownNPCs.forEach(npc => {
+      const contact = document.createElement('div');
+      contact.className = 'contact';
+      contact.textContent = npc.name;
+      contact.addEventListener('click', () => this.startPhoneChat(npc));
+      list.appendChild(contact);
+    });
+  }
+
+  startPhoneChat(npc) {
+    this.togglePhoneContacts();
+    this.startChat(npc);
+  }
+}
+
+class PhoneSystem {
+  constructor() {
+    this.contacts = new Map();
+    this.currentCall = null;
+  }
+
+  addContact(npc) {
+    this.contacts.set(npc.id, {
+      name: npc.name,
+      number: this.generatePhoneNumber(),
+      city: npc.city
+    });
+  }
+
+  generatePhoneNumber() {
+    return `555-${Math.floor(100 + Math.random() * 900)}-${Math.floor(1000 + Math.random() * 9000)}`;
+  }
+
+  startCall(npc) {
+    this.currentCall = npc;
+    npc.isInConversation = true;
+    // Show chat interface
+  }
+}
+
+class MapSystem {
+  constructor() {
+    this.mapCanvas = document.getElementById('mapCanvas');
+    this.mapCtx = this.mapCanvas.getContext('2d');
+    this.mapCanvas.width = 200;
+    this.mapCanvas.height = 200;
+  }
+
+  draw() {
+    this.mapCtx.fillStyle = 'rgba(0,0,0,0.8)';
+    this.mapCtx.fillRect(0, 0, 200, 200);
+    
+    // Draw player position
+    this.mapCtx.fillStyle = '#ff0000';
+    this.mapCtx.beginPath();
+    this.mapCtx.arc(100, 100, 3, 0, Math.PI * 2);
+    this.mapCtx.fill();
+    
+    // Draw NPCs
+    npcs.forEach(npc => {
+      const dx = npc.x - player.x;
+      const dy = npc.y - player.y;
+      if(Math.abs(dx) < 2000 && Math.abs(dy) < 2000) {
+        this.mapCtx.fillStyle = '#00ff00';
+        this.mapCtx.beginPath();
+        this.mapCtx.arc(100 + dx/20, 100 + dy/20, 2, 0, Math.PI * 2);
+        this.mapCtx.fill();
+      }
+    });
+  }
+}
+
+let interactionCooldown = false;
+
+function handleInteractionKey() {
+  if(interactionCooldown || !player.visible) return;
+  interactionCooldown = true;
+
+  if(currentInteractingNPC) {
+    endConversation();
+  } else {
+    const nearestNPC = findNearestNPC();
+    if(nearestNPC) startConversation(nearestNPC);
+  }
+}
+
+function findNearestNPC() {
+  let closest = null;
+  let minDist = Infinity;
+
+  npcs.forEach(npc => {
+    const dx = npc.x - player.x;
+    const dy = npc.y - player.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    
+    if(dist < DIALOGUE_RANGE && dist < minDist) {
+      minDist = dist;
+      closest = npc;
+    }
+  });
+
+  return closest;
+}
+
+function showContacts() {
+  document.getElementById('phoneMenu').style.display = 'none';
+  document.getElementById('phoneContacts').style.display = 'flex';
+}
+
+function toggleFullMap() {
+  const fullMap = document.getElementById('fullMap');
+  fullMap.style.display = fullMap.style.display === 'none' ? 'block' : 'none';
+  if(fullMap.style.display === 'block') {
+    drawFullMap();
+  }
+}
+
+function drawFullMap() {
+  const fullCanvas = document.getElementById('fullMapCanvas');
+  fullCanvas.width = window.innerWidth;
+  fullCanvas.height = window.innerHeight;
+  const ctx = fullCanvas.getContext('2d');
   
+  // Draw the full map content
+  ctx.fillStyle = 'rgba(0,0,0,0.9)';
+  ctx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
+  
+  // Draw player position
+  ctx.fillStyle = '#ff0000';
+  ctx.beginPath();
+  ctx.arc(player.x / mapWidth * fullCanvas.width, 
+          player.y / mapHeight * fullCanvas.height, 
+          5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw NPCs
+  npcs.forEach(npc => {
+    ctx.fillStyle = '#00ff00';
+    ctx.beginPath();
+    ctx.arc(npc.x / mapWidth * fullCanvas.width,
+            npc.y / mapHeight * fullCanvas.height,
+            3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
 // Generate the map
 function generateMap() {
   const mapData = [];
@@ -566,6 +1206,7 @@ function generateTraffic() {
     }
   }, 3000);
 }
+
 async function selectOption(index) {
   const optionText = document.querySelectorAll('.dialogue-option')[index].innerText;
   const response = await currentInteractingNPC.generateDialogue(optionText);
@@ -652,12 +1293,72 @@ function spawnCar(type) {
 }
 
 function initializeNPCs() {
-  for(let i = 0; i < 20; i++) {
-    npcs.push(new NPC(
-      Math.random() * mapWidth,
-      Math.random() * mapHeight
-    ));
+  // Add core NPCs
+  CORE_NPCS.forEach(data => npcs.push(new NPC(data)));
+
+  // Add faction NPCs around player
+  const spawnRadius = 2000;
+  for(let i = 0; i < 18; i++) {
+    const template = NPC_TEMPLATES[i % NPC_TEMPLATES.length];
+    npcs.push(new NPC({
+      ...template,
+      x: player.x + (Math.random() - 0.5) * spawnRadius,
+      y: player.y + (Math.random() - 0.5) * spawnRadius
+    }));
   }
+}
+
+function startConversation(npc) {
+  chatSystem.startChat(npc);
+}
+
+
+function displayMessage(speaker, text) {
+  const content = document.getElementById('dialogueContent');
+  content.innerHTML += `<p><strong>${speaker}:</strong> ${text}</p>`;
+  content.scrollTop = content.scrollHeight; // Auto-scroll
+}
+
+async function sendPlayerMessage() {
+  const input = document.getElementById('playerInput');
+  const message = input.value.trim();
+  
+  if(message) {
+    displayMessage("You", message);
+    const response = await currentInteractingNPC.generateResponse(message);
+    displayMessage(currentInteractingNPC.name, response);
+    input.value = '';
+  }
+}
+
+function endConversation() {
+  // Hide UI
+  document.getElementById('dialogueBox').style.display = 'none';
+  
+  // Process world updates
+  currentInteractingNPC.generateWorldUpdate()
+    .then(update => applyWorldChanges(update));
+  
+  currentInteractingNPC = null;
+}
+
+function sendPlayerMessage() {
+  const input = document.getElementById('playerInput').value;
+  conversationManager.sendMessage(input);
+}
+
+function generateSidewalkNodes(tile) {
+  const nodes = [];
+  // Generate nodes along road edges
+  if(tile.isCityRoad || tile.isSuburbRoad) {
+    for(let i = 0; i < tileSize; i += 50) {
+      nodes.push({ x: tile.x + i, y: tile.y });
+      nodes.push({ x: tile.x + i, y: tile.y + tileSize });
+      nodes.push({ x: tile.x, y: tile.y + i });
+      nodes.push({ x: tile.x + tileSize, y: tile.y + i });
+    }
+  }
+  return nodes;
 }
 // Road logic
 function isCityRoad(x, y) {
@@ -734,7 +1435,9 @@ function drawMap() {
 
       if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
         const tile = map[mapY][mapX];
-        const texture = textures[tile.F] || textures.grassland;
+        const texture = textures.grassland
+
+
         
         // Only draw base texture here
         ctx.drawImage(
@@ -760,10 +1463,11 @@ function drawMap() {
         const worldTileY = mapY;
 
         // Draw roads
-        const isCity = tile.biome === 'city' && isCityRoad(mapX, mapY);
-        const isSuburb = tile.biome === 'suburbs' && isSuburbRoad(mapX, mapY);
-        
-        if (isCity || isSuburb) {
+        const isCityR = tile.biome === 'city' && isCityRoad(mapX, mapY);
+        const isSuburbR = tile.biome === 'suburbs' && isSuburbRoad(mapX, mapY);
+      
+
+        if (isCityR || isSuburbR) {
           const posX = x * tileSize - tileOffsetX;
           const posY = y * tileSize - tileOffsetY;
           const roadInfo = getRoadRotation(mapX, mapY);
@@ -782,7 +1486,7 @@ function drawMap() {
         }
 
         // Draw houses
-        if (tile.hasHouse || (!(isCity || isSuburb) && tile.biome === 'suburbs')) {
+        if (tile.hasHouse || (!(isCityR || isSuburbR) && tile.biome === 'suburbs')) {
           ctx.save();
           const posX = x * tileSize - tileOffsetX;
           const posY = y * tileSize - tileOffsetY;
@@ -800,6 +1504,22 @@ function drawMap() {
           );
           ctx.restore();
         }
+        if( tile.biome === 'water'){
+          ctx.save();
+          const posX = x * tileSize - tileOffsetX;
+          const posY = y * tileSize - tileOffsetY;
+          
+          // Determine house rotation based on nearest road
+          ctx.translate(posX + tileSize/2, posY + tileSize/2);
+          ctx.drawImage(
+            textures.water,
+            -tileSize/2,
+            -tileSize/2,
+            tileSize,
+            tileSize
+          );
+          ctx.restore();
+        }
       }
     }
   }
@@ -807,10 +1527,6 @@ function drawMap() {
 
 // Game loop
 function gameLoop() {
-  
-  
-  if (keys.KeyM) toggleMenu();
-
 
   // Keep player within bounds
     // Player/Car movement
@@ -819,10 +1535,10 @@ function gameLoop() {
     player.x = player.currentVehicle.x;
     player.y = player.currentVehicle.y;
   } else {
-    if (keys.ArrowUp) player.y -= player.speed;
-    if (keys.ArrowDown) player.y += player.speed;
-    if (keys.ArrowLeft) player.x -= player.speed;
-    if (keys.ArrowRight) player.x += player.speed;
+    if (keys.ArrowUp || keys.KeyW) player.y -= player.speed;
+    if (keys.ArrowDown || keys.KeyS) player.y += player.speed;
+    if (keys.ArrowLeft || keys.KeyA) player.x -= player.speed;
+    if (keys.ArrowRight || keys.KeyD) player.x += player.speed;
     
     // Check for nearby cars to enter
     const enterRange = 50;
@@ -832,15 +1548,15 @@ function gameLoop() {
       Math.abs(car.y - player.y) < enterRange
     );
     
-    if (keys.KeyF && nearbyCar) {
-      nearbyCar.enter(player);
-    }
+    //if (keys.KeyF && nearbyCar) {
+    //  nearbyCar.enter(player);
+    //}
   }
 
   // Exit vehicle
-  if (keys.KeyE && player.currentVehicle) {
-    player.currentVehicle.exit();
-  }
+  //if (keys.KeyE && player.currentVehicle) {
+  //  player.currentVehicle.exit();
+  //}
 
   // Keep within bounds
   player.x = Math.max(0, Math.min(mapWidth - tileSize, player.x));
@@ -848,6 +1564,7 @@ function gameLoop() {
 
   // Manage traffic chunks
   manageTraffic();
+  //checkCurrentCity();
 
   // Update entities
   traffic.forEach(car => car.update());
@@ -861,24 +1578,15 @@ function gameLoop() {
   traffic.forEach(car => car.draw(ctx, player.x, player.y));
   cars.forEach(car => car.draw(ctx, player.x, player.y));
   npcs.forEach(npc => {
-    npc.update();
-    if(Date.now() - npc.lastAIUpdate > NPC_UPDATE_INTERVAL) {
-      npc.updateBehavior();
-    }
+    if(!npc.isInConversation) npc.update();
+    if(Date.now() - npc.lastAIUpdate > NPC_UPDATE_INTERVAL) npc.updateBehavior();
   });
   
-  if(!currentInteractingNPC && player.visible) {
-    npcs.forEach(npc => {
-      const distance = Math.hypot(npc.x - player.x, npc.y - player.y);
-      if(distance < DIALOGUE_RANGE && npc.interactionCooldown === 0) {
-        startDialogue(npc);
-      }
-    });
-  }
-
 
   // Draw NPCs
   npcs.forEach(npc => npc.draw(ctx, player.x, player.y));
+  mapSystem.draw();
+
   // Draw player if visible
   if (player.visible) {
     ctx.fillStyle = '#ff0000';
@@ -897,6 +1605,9 @@ function gameLoop() {
 player.visible = true;
 player.currentVehicle = null;
 const map = generateMap();
+const chatSystem = new ChatSystem();
+const mapSystem = new MapSystem();
+initializeNPCs()
 generateTraffic();
 const allTextures = Object.values(textures);
 Promise.all(allTextures.map((img) => new Promise((resolve) => (img.onload = resolve)))).then(() => {
