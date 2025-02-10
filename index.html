@@ -208,13 +208,13 @@
 
 <script>
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const mapWidth = 300000;
-const mapHeight = 300000;
+const ctx = canvas.getContext('2d', { antialias: false });
+const mapWidth = 100000;
+const mapHeight = 100000;
 const tileSize = 400; // Adjusted for zoom
 const playerSize = 16;
-const noiseScale = 0.02;
-const noiseScale2 = 0.05;
+const noiseScale = 0.005;
+const noiseScale2 = 0.0125;
 const DIRECTION = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
 const cars = [];
 const traffic = [];
@@ -223,11 +223,14 @@ const CHUNK_SIZE = 1000; // World units
 const loadedChunks = new Set();
 const npcs = [];
 let currentInteractingNPC = null;
-const NPC_UPDATE_INTERVAL = 5000; // Update NPC behavior every 5 seconds
+const NPC_UPDATE_INTERVAL = 100;
 const DIALOGUE_RANGE = 100; // Distance for conversation
-const API_KEY = "Your OPEN AI API Key";
-
-
+const API_KEY = "Insert api key";
+const FPS = 200;
+let lastFrame = 0;
+const TRAFFIC_UPDATE_INTERVAL = 50; // ms between traffic updates
+let lastNPCUpdate = 0;
+let lastTrafficUpdate = 0;
 
 
 //console.log("API Key:", API_KEY);
@@ -453,7 +456,6 @@ document.addEventListener('keyup', (e) => {
 // Textures
 const textures = {
   water: new Image(),
-  city: new Image(),
   suburbs: new Image(),
   grassland: new Image(),
   road_straight: new Image(),
@@ -462,12 +464,16 @@ const textures = {
   road_x: new Image(),
   road_dead_end: new Image(),
   house: new Image(),
-  driveway: new Image()
+  school: new Image(),
+  park: new Image(),
+  cityback: new Image(),
+  building3x3: new Image(),
+  building2x2: new Image(),
+  building2x1: new Image()
 };
 
 // Load textures
 textures.water.src = 'water.png';
-textures.city.src = 'city.png';
 textures.suburbs.src = 'suburbs.png';
 textures.grassland.src = 'grassland.png';
 textures.road_straight.src = 'road_straight.png';
@@ -476,13 +482,148 @@ textures.road_t.src = 'road_t.png';
 textures.road_x.src = 'road_x.png';
 textures.road_dead_end.src = 'road_dead_end.png';
 textures.house.src = 'house.png';
-textures.driveway.src = 'driveway.png';
+textures.school.src = 'school.png';
+textures.park.src = 'park.png';
+textures.building3x3.src = 'building2x2.png';
+textures.building2x2.src = 'building3x3.png';
+textures.building2x1.src = 'building2x1.png';
+textures.cityback.src = 'citybackg.png';
+
+const SCHOOL_PROBABILITY = 0.05;
+const PARK_PROBABILITY = 0.2;
+const LARGE_BUILDING_PROB = 0.5;
+const MEDIUM_BUILDING_PROB = 1;
+const SMALL_BUILDING_PROB = 1;
+
 
 class Tile {
-  constructor(biome, hasHouse = false, driveway = null) {
+  constructor(biome, type = 'default', hasRoad = false) {
     this.biome = biome;
-    this.hasHouse = hasHouse;
-    this.driveway = driveway;
+    this.type = type;
+    this.hasRoad = hasRoad;
+    this.rotation = 0;
+    this.isStructureOrigin = false; // Add this property
+    this.structureWidth = 1;
+    this.structureHeight = 1;
+    this.sidewalkNodes = [];
+  }
+  calculateSidewalkNodes(rotation) {
+    const nodes = [];
+    const offset = tileSize * 0.3; // Distance from road edge
+    const center = tileSize/2;
+    const quarter = tileSize/4;
+    const eighth = tileSize/8;
+
+    switch(this.roadType) {
+      case 'straight':
+        if(rotation % (Math.PI/2) === 0) { // Vertical
+          this.sidewalkNodes.push(
+            {x: center - offset, y: tileSize + 10},
+            {x: center + offset, y: tileSize + 10}
+          );
+        } else { // Horizontal
+          this.sidewalkNodes.push(
+            {x: tileSize + 10, y: center - offset},
+            {x: tileSize + 10, y: center + offset}
+          );
+        }
+        break;
+
+      case 'turn':
+        // Circular path around the curve
+        for(let angle = 0; angle < Math.PI/2; angle += Math.PI/12) {
+          const x = center + Math.cos(angle + rotation) * (center - offset);
+          const y = center + Math.sin(angle + rotation) * (center - offset);
+          nodes.push({x, y});
+          
+          const x2 = center + Math.cos(angle + rotation) * (center + offset);
+          const y2 = center + Math.sin(angle + rotation) * (center + offset);
+          nodes.push({x: x2, y: y2});
+        }
+        break;
+
+      case 't':
+        // Three-way sidewalk connections
+        nodes.push(
+          {x: center - offset, y: 0},
+          {x: center + offset, y: 0},
+          {x: 0, y: center - offset},
+          {x: 0, y: center + offset},
+          {x: tileSize, y: center - offset},
+          {x: tileSize, y: center + offset},
+          {x: center - offset, y: tileSize},
+          {x: center + offset, y: tileSize}
+        );
+        // Filter based on rotation
+        this.sidewalkNodes = nodes.filter(n => {
+          const angle = Math.atan2(n.y - center, n.x - center);
+          return Math.abs(angle - rotation) < Math.PI/2 || 
+                Math.abs(angle - rotation) > Math.PI*1.5;
+        });
+        break;
+
+      case 'x': // Intersection
+        nodes.push(
+          {x: center - offset, y: 0},
+          {x: center + offset, y: 0},
+          {x: center - offset, y: tileSize},
+          {x: center + offset, y: tileSize},
+          {x: 0, y: center - offset},
+          {x: 0, y: center + offset},
+          {x: tileSize, y: center - offset},
+          {x: tileSize, y: center + offset}
+        );
+        break;
+
+      case 'dead_end':
+        if(rotation === 0) { // Facing right
+          nodes.push(
+            {x: center - offset, y: center - offset},
+            {x: center + offset, y: center - offset},
+            {x: tileSize, y: center - offset},
+            {x: tileSize, y: center + offset}
+          );
+        } else if(rotation === Math.PI) { // Facing left
+          nodes.push(
+            {x: center - offset, y: center - offset},
+            {x: center + offset, y: center - offset},
+            {x: 0, y: center - offset},
+            {x: 0, y: center + offset}
+          );
+        } else if(rotation === Math.PI/2) { // Facing down
+          nodes.push(
+            {x: center - offset, y: center - offset},
+            {x: center + offset, y: center - offset},
+            {x: center - offset, y: tileSize},
+            {x: center + offset, y: tileSize}
+          );
+        } else { // Facing up
+          nodes.push(
+            {x: center - offset, y: center - offset},
+            {x: center + offset, y: center - offset},
+            {x: center - offset, y: 0},
+            {x: center + offset, y: 0}
+          );
+        }
+        break;
+
+      default:
+        // Default to straight road behavior
+        nodes.push(
+          {x: center - offset, y: 0},
+          {x: center + offset, y: 0},
+          {x: center - offset, y: tileSize},
+          {x: center + offset, y: tileSize}
+        );
+    }
+
+    // Rotate points according to road orientation
+    this.sidewalkNodes = nodes.map(n => {
+      return {
+        x: center + (n.x - center) * Math.cos(rotation) - (n.y - center) * Math.sin(rotation),
+        y: center + (n.x - center) * Math.sin(rotation) + (n.y - center) * Math.cos(rotation)
+      };
+    });
   }
 }
   
@@ -533,31 +674,18 @@ class NPC {
     this.knowledge = roleData.knowledge;
     this.conversationHistory = [];
     this.interactionCooldown = 0;
-    this.speed = 0.5;
+    this.speed = 1;
     this.destination = this.getRandomDestination();
     this.city = 0;//city;
     this.currentPath = [];
     this.isMoving = false;
     this.lastKnownPosition = { x: roleData.x, y: roleData.y };
     this.isInConversation = false;
+    this.sidewalkPath = [];
+    this.currentStep = 0;
   }
 
 
-  generateName() {
-    const names = ["Alex", "Sam", "Jordan", "Taylor", "Casey"];
-    return names[Math.floor(Math.random() * names.length)];
-  }
-
-  generatePersonality() {
-    const traits = {
-      openness: Math.random(),
-      conscientiousness: Math.random(),
-      extraversion: Math.random(),
-      agreeableness: Math.random(),
-      neuroticism: Math.random()
-    };
-    return traits;
-  }
 
   async generateResponse(message) {
     // Add to conversation history
@@ -617,11 +745,60 @@ class NPC {
     const data = await response.json();
     return data.choices[0].message.content.trim();
   }
+
   generateNewPath() {
-    // Get road edge nodes from current tile
-    //const currentTile = this.getCurrentTile();
-    //this.currentPath = currentTile.getSidewalkPath();
-    return 1;
+    // Get random nearby sidewalk path
+    const startNode = roadNetwork.getNearestNode(this.x, this.y);
+    if (startNode) {
+      const endNode = roadNetwork.getRandomNode();
+      const path = roadNetwork.getPath(startNode.x, startNode.y, endNode.x, endNode.y);
+      if (path) {
+        this.sidewalkPath = path.map(node => {
+          const [x, y] = node.split('|').map(Number);
+          return { x, y };
+        });
+        this.currentStep = 0;
+      }
+    }
+  }
+
+
+  isValidSidewalkPosition(x, y) {
+    const tileX = Math.floor(x/tileSize);
+    const tileY = Math.floor(y/tileSize);
+    return tileY >= 0 && tileY < map.length && 
+           tileX >= 0 && tileX < map[0].length &&
+           map[tileY][tileX].sidewalkNodes?.some(n => 
+             Math.abs(n.x - (x % tileSize)) < 10 && 
+             Math.abs(n.y - (y % tileSize)) < 10
+           );
+  }
+
+  getCurrentTile() {
+    const tileX = Math.floor(this.x / tileSize);
+    const tileY = Math.floor(this.y / tileSize);
+    if(tileY >= 0 && tileY < map.length && tileX >= 0 && tileX < map[0].length) {
+      return map[tileY][tileX];
+    }
+    return null;
+  }
+  getAdjacentTilesWithSidewalks() {
+    const tileX = Math.floor(this.x / tileSize);
+    const tileY = Math.floor(this.y / tileSize);
+    const adjacent = [];
+    
+    for(let dx = -1; dx <= 1; dx++) {
+      for(let dy = -1; dy <= 1; dy++) {
+        if(tileY + dy >= 0 && tileY + dy < map.length && 
+           tileX + dx >= 0 && tileX + dx < map[0].length) {
+          const tile = map[tileY + dy][tileX + dx];
+          if(tile?.sidewalkNodes?.length > 0) {
+            adjacent.push(tile);
+          }
+        }
+      }
+    }
+    return adjacent;
   }
 
 
@@ -672,45 +849,57 @@ class NPC {
     const update = await this.queryOpenAI(prompt);
     return JSON.parse(update);
   }
-
+  canInteract() {
+    return Date.now() > this.interactionCooldown && 
+           !this.isInConversation &&
+           Math.hypot(this.x - player.x, this.y - player.y) < DIALOGUE_RANGE;
+  }
+  
   draw(ctx, playerX, playerY) {
     const screenX = this.x - playerX + canvas.width/2;
     const screenY = this.y - playerY + canvas.height/2;
     
-    // Only draw if in view
     if (Math.abs(screenX) < canvas.width * 1.5 && Math.abs(screenY) < canvas.height * 1.5) {
+      // Draw NPC with walking animation
       ctx.fillStyle = '#00FF00';
       ctx.beginPath();
-      ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+      ctx.arc(screenX, screenY - Math.abs(Math.sin(Date.now()*0.005)*5), 8, 0, Math.PI*2);
       ctx.fill();
       
-      // Draw name
       ctx.fillStyle = 'white';
       ctx.font = '12px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(this.name, screenX, screenY - 12);
+      ctx.fillText(this.name, screenX, screenY - 20);
     }
   }
 
   update() {
-    if(this.isInConversation) return;
-    
-    // Pathfinding along road edges
-    if(this.currentPath.length === 0) {
-      this.getRandomDestination(); //generateNewPath();
-    } else {
-      const nextNode = this.currentPath[0];
-      const dx = nextNode.x - this.x;
-      const dy = nextNode.y - this.y;
-      
-      if(Math.hypot(dx, dy) < 5) {
-        this.currentPath.shift();
+    if (this.isInConversation) return;
+
+    if (this.sidewalkPath.length === 0 || this.currentStep >= this.sidewalkPath.length) {
+      this.generateNewPath();
+    }
+
+    if (this.sidewalkPath.length > 0) {
+      const target = this.sidewalkPath[this.currentStep];
+      const dx = target.x - this.x;
+      const dy = target.y - this.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < 2) {
+        this.currentStep++;
       } else {
-        this.x += (dx / Math.hypot(dx, dy)) * this.speed;
-        this.y += (dy / Math.hypot(dx, dy)) * this.speed;
+        // Move along path with proper sidewalk alignment
+        const moveX = (dx / dist) * this.speed;
+        const moveY = (dy / dist) * this.speed;
+        
+        // Snap to sidewalk grid
+        this.x = Math.round(this.x + moveX);
+        this.y = Math.round(this.y + moveY);
       }
     }
   }
+
+
 }
 
 class Car {
@@ -754,6 +943,177 @@ class Car {
     this.deceleration = 0.002;
     this.wheelBase = 20; // Distance between front and rear axles
     this.track = this.width * 0.6; // Distance between left/right wheels
+  }
+
+  getCurrentTile() {
+    // Add NaN checks and bounds protection
+    const tileX = Math.floor(this.x / tileSize);
+    const tileY = Math.floor(this.y / tileSize);
+    
+    // Validate coordinates
+    if (isNaN(tileX) || isNaN(tileY)) {
+      console.warn('Invalid vehicle position:', this.x, this.y);
+      return { hasRoad: false };
+    }
+
+    // Check map bounds
+    if (tileY < 0 || tileY >= map.length || tileX < 0 || tileX >= map[0].length) {
+      return { hasRoad: false };
+    }
+
+    return map[tileY][tileX] || { hasRoad: false };
+  }
+
+  getCurrentRoadInfo() {
+    const tileX = Math.floor(this.x / tileSize);
+    const tileY = Math.floor(this.y / tileSize);
+    
+    // Add failsafe for invalid coordinates
+    if (tileY < 0 || tileY >= map.length || tileX < 0 || tileX >= map[0].length) {
+      return { type: 'grass', rotation: 0 };
+    }
+
+    return getRoadRotation(tileX, tileY);
+  }
+
+  handleOffRoad() {
+    // Try to find nearest road or despawn
+    if (Math.random() < 0.1) { // 10% chance per frame to recover
+      const roadNode = roadNetwork.getNearestNode(this.x, this.y);
+      if (roadNode) {
+        this.x = roadNode.x;
+        this.y = roadNode.y;
+      }
+    } else if (Math.random() < 0.01) { // 1% chance to despawn
+      const index = traffic.indexOf(this);
+      if (index > -1) traffic.splice(index, 1);
+    }
+  }
+
+  alignWithRoad(roadInfo) {
+    // Calculate target angle based on road type and rotation
+    let targetAngle = roadInfo.rotation;
+    if (roadInfo.type === 'straight') {
+      targetAngle += (this.currentSpeed > 0 ? 0 : Math.PI);
+    }
+    
+    // Smoothly adjust steering
+    const angleDiff = targetAngle - this.angle;
+    if (Math.abs(angleDiff) > 0.1) {
+      this.angle += Math.sign(angleDiff) * this.steeringResponse * 
+                   Math.min(1, this.currentSpeed/this.maxSpeed);
+    }
+  }
+
+  approachingIntersection() {
+    // Check if near intersection (T or X road)
+    const tileX = Math.floor(this.x / tileSize);
+    const tileY = Math.floor(this.y / tileSize);
+    const roadInfo = getRoadRotation(tileX, tileY);
+    return ['x', 't'].includes(roadInfo.type) && 
+           Math.random() < 0.02; // Random chance to turn
+  }
+
+  handleIntersection(roadInfo) {
+    // Get possible directions
+    const directions = this.getPossibleDirections(roadInfo);
+    
+    // Randomly choose new direction
+    if (directions.length > 0) {
+      const newDirection = directions[Math.floor(Math.random() * directions.length)];
+      this.angle = newDirection;
+    }
+  }
+
+  getPossibleDirections(roadInfo) {
+    const directions = [];
+    const currentAngle = this.angle % (Math.PI * 2);
+    
+    switch(roadInfo.type) {
+      case 'x':
+        // Can go straight or turn
+        directions.push(
+          currentAngle,
+          currentAngle + Math.PI/2,
+          currentAngle - Math.PI/2
+        );
+        break;
+      case 't':
+        // Can't go back the way came
+        const opposite = (currentAngle + Math.PI) % (Math.PI * 2);
+        [0, Math.PI/2, -Math.PI/2].forEach(offset => {
+          const dir = (currentAngle + offset) % (Math.PI * 2);
+          if (Math.abs(dir - opposite) > Math.PI/4) {
+            directions.push(dir);
+          }
+        });
+        break;
+    }
+    return directions;
+  }
+
+  applyLaneDrift() {
+    // Random lane drifting effect
+    if (Math.random() < 0.01) {
+      this.laneOffset = (Math.random() - 0.5) * this.track;
+    }
+    
+    // Apply lane offset
+    const laneAdjustX = Math.cos(this.angle + Math.PI/2) * this.laneOffset;
+    const laneAdjustY = Math.sin(this.angle + Math.PI/2) * this.laneOffset;
+    this.x += laneAdjustX;
+    this.y += laneAdjustY;
+  }
+
+  updateTrafficBehavior() {
+    const currentTile = this.getCurrentTile();
+    if (!currentTile?.hasRoad) {
+      this.handleOffRoad();
+      return;
+    }
+
+    const roadInfo = this.getCurrentRoadInfo();
+    
+    // Accelerate to target speed
+    this.currentSpeed = Math.min(
+      this.currentSpeed + this.acceleration,
+      this.maxSpeed
+    );
+
+    // Move along road direction
+    this.x += Math.cos(roadInfo.rotation) * this.currentSpeed;
+    this.y += Math.sin(roadInfo.rotation) * this.currentSpeed;
+
+    // Lane keeping with smoother adjustment
+    const laneOffset = 75;
+    const roadCenterX = Math.floor(this.x/tileSize)*tileSize + tileSize/2;
+    const roadCenterY = Math.floor(this.y/tileSize)*tileSize + tileSize/2;
+    const targetX = roadCenterX + Math.cos(roadInfo.rotation + Math.PI/2) * laneOffset;
+    const targetY = roadCenterY + Math.sin(roadInfo.rotation + Math.PI/2) * laneOffset;
+    
+    // Smooth lane adjustment
+    this.x += (targetX - this.x) * 0.1;
+    this.y += (targetY - this.y) * 0.1;
+    
+    // Update angle to match road direction
+    this.angle = roadInfo.rotation;
+
+    // Random speed variation
+    this.currentSpeed *= (0.95 + Math.random() * 0.1);
+  }
+  handleIntersection(roadInfo) {
+    if(Math.random() < 0.3) { // 30% chance to turn at intersection
+      const directions = this.getPossibleDirections(roadInfo);
+      if(directions.length > 0) {
+        this.angle = directions[Math.floor(Math.random() * directions.length)];
+        this.currentSpeed *= 0.8; // Slow down when turning
+      }
+    }
+  }
+  // Helper function for angle interpolation
+  lerpAngle(current, target, factor) {
+    const difference = target - current;
+    return current + (Math.atan2(Math.sin(difference), Math.cos(difference)) * factor);
   }
 
   enter(player) {
@@ -858,22 +1218,95 @@ class Car {
       this.x += Math.cos(moveAngle) * this.currentSpeed;
       this.y += Math.sin(moveAngle) * this.currentSpeed;
     } else if (this.isTraffic) {
-      // Simplified traffic movement with basic physics
-      this.currentSpeed = Math.min(
-        this.currentSpeed + this.acceleration * 0.5,
-        this.maxSpeed * 0.8
-      );
-      
-      // Gentle traffic steering
-      if (Math.random() < 0.01) {
-        const maxTurnSpeed = Math.sqrt(this.grip * this.minTurningRadius);
-        const speedFactor = Math.min(1, this.currentSpeed / maxTurnSpeed);
-        this.angle += (Math.random() - 0.5) * this.steeringResponse * (1 - speedFactor);
-      }
-      
-      this.x += Math.cos(this.angle) * this.currentSpeed;
-      this.y += Math.sin(this.angle) * this.currentSpeed;
+      this.updateTrafficBehavior();
     }
+  }
+}
+
+class RoadNetwork {
+  constructor() {
+    this.nodes = new Map();
+    this.roadGraph = {};
+  }
+
+  addNode(x, y, connections) {
+    const key = `${x}|${y}`;
+    if(!this.roadGraph[key]) this.roadGraph[key] = [];
+    connections.forEach(conn => {
+      const connKey = `${conn.x}|${conn.y}`;
+      if(!this.roadGraph[key].includes(connKey)) {
+        this.roadGraph[key].push(connKey);
+      }
+    });
+  }
+
+  getPath(startX, startY, endX, endY) {
+    const startKey = `${startX}|${startY}`;
+    const endKey = `${endX}|${endY}`;
+    
+    const queue = [[startKey]];
+    const visited = new Set();
+
+    while(queue.length > 0) {
+      const path = queue.shift();
+      const node = path[path.length-1];
+
+      if(node === endKey) return path;
+      
+      if(this.roadGraph[node]) {
+        for(let neighbor of this.roadGraph[node]) {
+          if(!visited.has(neighbor)) {
+            visited.add(neighbor);
+            queue.push([...path, neighbor]);
+          }
+        }
+      }
+    }
+    return null;
+  }
+  getNearestNode(x, y) {
+    let closestNode = null;
+    let minDistance = Infinity;
+
+    for (const nodeKey of Object.keys(this.roadGraph)) {
+      const [nodeX, nodeY] = nodeKey.split('|').map(Number);
+      const distance = Math.hypot(x - nodeX, y - nodeY);
+      
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestNode = { x: nodeX, y: nodeY };
+      }
+    }
+    return closestNode;
+  }
+
+  getRandomNode() {
+    const nodes = Object.keys(this.roadGraph);
+    if (nodes.length === 0) return null;
+    
+    const randomKey = nodes[Math.floor(Math.random() * nodes.length)];
+    const [x, y] = randomKey.split('|').map(Number);
+    return { x, y };
+  }
+  getSidewalkPaths() {
+    const paths = [];
+    Object.keys(this.roadGraph).forEach(nodeKey => {
+      const [x, y] = nodeKey.split('|').map(Number);
+      const tile = map[Math.floor(y/tileSize)][Math.floor(x/tileSize)];
+      if (tile?.sidewalkNodes?.length > 0) {
+        paths.push(tile.sidewalkNodes.map(n => ({
+          x: x + n.x - tileSize/2,
+          y: y + n.y - tileSize/2
+        })));
+      }
+    });
+    return paths;
+  }
+
+  getNodeRotation(x, y) {
+    const tileX = Math.floor(x / tileSize);
+    const tileY = Math.floor(y / tileSize);
+    return getRoadRotation(tileX, tileY).rotation;
   }
 }
 
@@ -1026,8 +1459,8 @@ class MapSystem {
 let interactionCooldown = false;
 
 function handleInteractionKey() {
-  if(interactionCooldown || !player.visible) return;
-  interactionCooldown = true;
+  if(!player.visible) return;
+
 
   if(currentInteractingNPC) {
     endConversation();
@@ -1102,40 +1535,143 @@ function generateMap() {
   const mapData = [];
   const centerX = mapWidth / 2;
   const centerY = mapHeight / 2;
-  
-  // Find nearest road tile to center
   let closestTile = { x: centerX, y: centerY };
   let minDistance = Infinity;
-  for (let y = 0; y < mapHeight / tileSize; y+=0.25) {
+  const largeStructures = new Set();
+
+  // Initialize map with empty tiles
+  for (let y = 0; y < mapHeight / tileSize; y++) {
     const row = [];
-    for (let x = 0; x < mapWidth / tileSize; x+=0.25) {
+    for (let x = 0; x < mapWidth / tileSize; x++) {
       const noiseValue1 = simplex.noise2D(x * noiseScale, y * noiseScale);
       const noiseValue2 = simplex.noise2D(x * noiseScale2, y * noiseScale2) * 0.5;
       const combinedNoise = noiseValue1 + noiseValue2;
 
       let biome = 'grassland';
-      if (combinedNoise < -0.5) {
-        biome = 'water';
-      } else if (combinedNoise < -0.1) {
-        biome = 'suburbs';
-      } else if (combinedNoise > 0.9) {
-        biome = 'city';
-      } else if (combinedNoise > 0.4) {
-        biome = 'suburbs';
+      if (combinedNoise < -0.5) biome = 'water';
+      else if (combinedNoise < -0.1) biome = 'suburbs';
+      else if (combinedNoise > 0.9) biome = 'city';
+      else if (combinedNoise > 0.4) biome = 'suburbs';
+      const currentTile = new Tile(biome)
+      if(biome === 'city' && isCityRoad(x,y)){
+        currentTile.hasRoad = true
       }
-
-      let tile = new Tile(biome);
-      
-      if (biome === 'suburbs' && !isSuburbRoad && Math.random() < HOUSE_PROBABILITY) {
-        tile.hasHouse = true;
+      if(biome === 'suburbs' && isSuburbRoad(x,y)){
+        currentTile.hasRoad = true
       }
-      
-      row.push(tile);
+      row.push(currentTile);
     }
     mapData.push(row);
   }
 
+  // Add structures
+  for (let y = 0; y < mapHeight / tileSize; y++) {
+    for (let x = 0; x < mapHeight / tileSize; x++) {
+      const tile = mapData[y][x];
+      const isCityRoadTile = isCityRoad(x, y);
+      const isSuburbRoadTile = isSuburbRoad(x, y);
+      tile.type = 'house';
 
+      if (tile.biome === 'suburbs' && !isSuburbRoadTile && !largeStructures.has(`${x},${y}`) && !isRoadTileNoMap(x+1,y+1)) {
+        if (Math.random() < SCHOOL_PROBABILITY && 
+            x < mapData[0].length - 2 && y < mapData.length - 2) {
+          for (let dx = 0; dx < 2; dx++) {
+            for (let dy = 0; dy < 2; dy++) {
+              const currentTile = mapData[y + dy][x + dx];
+              currentTile.type = 'school';
+              currentTile.structureWidth = 2;
+              currentTile.structureHeight = 2;
+              currentTile.isStructureOrigin = (dx === 0 && dy === 0);
+              largeStructures.add(`${x + dx},${y + dy}`);
+            }
+          }
+        }
+        else if (Math.random() < PARK_PROBABILITY) {
+          tile.type = 'park';
+        }
+        else{
+          tile.type = 'house';
+        }
+      }
+      else if (tile.biome === 'city' && !isCityRoadTile && !largeStructures.has(`${x},${y}`) && !largeStructures.has(`${x+2},${y}`)&&!largeStructures.has(`${x+2},${y+2}`) && !isRoadTileNoMap(x+2,y+2)&& !isRoadTileNoMap(x+1,y+1)) {
+        if (Math.random() < LARGE_BUILDING_PROB && 
+            x < mapData[0].length - 3 && y < mapData.length - 3) {
+          for (let dx = 0; dx < 3; dx++) {
+            for (let dy = 0; dy < 3; dy++) {
+              const currentTile = mapData[y + dy][x + dx];
+              currentTile.type = 'building3x3';
+              currentTile.structureWidth = 3;
+              currentTile.structureHeight = 3;
+              currentTile.isStructureOrigin = (dx === 0 && dy === 0);
+              largeStructures.add(`${x + dx},${y + dy}`);
+            }
+          }
+        }
+        else if (Math.random() < MEDIUM_BUILDING_PROB && 
+              !isRoadTileNoMap(x,y)) { // x < mapData[0].length - 2 && y < mapData.length - 2 && 
+          for (let dx = 0; dx < 2; dx++) {
+            for (let dy = 0; dy < 2; dy++) {
+              const currentTile = mapData[y + dy][x + dx];
+              currentTile.type = 'building2x2';
+              currentTile.structureWidth = 2;
+              currentTile.structureHeight = 2;
+              currentTile.isStructureOrigin = (dx === 0 && dy === 0);
+              largeStructures.add(`${x + dx},${y + dy}`);
+            }
+          }
+        }
+        else if (Math.random() < SMALL_BUILDING_PROB && 
+               x < mapData[0].length - 2 && !isCityRoadTile) {
+          for (let dx = 0; dx < 2; dx++) {
+            mapData[y][x + dx].type = 'building2x1';
+            const currentTile = mapData[y][x + dx];
+            currentTile.type = 'building2x1';
+            currentTile.structureHeight = 2;
+            currentTile.isStructureOrigin = (dx === 0);
+            largeStructures.add(`${x + dx},${y}`);
+            
+          }
+        }
+        else if (Math.random() < PARK_PROBABILITY) {
+          tile.type = 'park';
+        }
+      }
+      if (mapData[y][x].hasRoad) {
+        const roadInfo = getRoadRotationNoMap(x, y);
+        mapData[y][x].roadType = roadInfo.type;
+        
+        // Proper road connections
+        const connections = [];
+        const directions = [
+          { dx: -1, dy: 0 }, // left
+          { dx: 1, dy: 0 },  // right
+          { dx: 0, dy: -1 }, // up
+          { dx: 0, dy: 1 }   // down
+        ];
+
+        directions.forEach(dir => {
+          const nx = x + dir.dx;
+          const ny = y + dir.dy;
+          if (ny >= 0 && ny < mapData.length && nx >= 0 && nx < mapData[ny].length) {
+            if (mapData[ny][nx].hasRoad) {
+              connections.push({
+                x: nx * tileSize + tileSize/2,
+                y: ny * tileSize + tileSize/2
+              });
+            }
+          }
+        });
+
+        roadNetwork.addNode(
+          x * tileSize + tileSize/2,
+          y * tileSize + tileSize/2,
+          connections
+        );
+      }
+    }
+  }
+
+  // Find closest road tile for player spawn
   for (let y = 0; y < mapData.length; y++) {
     for (let x = 0; x < mapData[y].length; x++) {
       if (mapData[y][x].biome === 'city' && isCityRoad(x, y)) {
@@ -1156,8 +1692,9 @@ function generateMap() {
   return mapData;
 }
 
+
 function determineHouseRotation(x, y) {
-  if(y % 3 === 1) return Math.PI;
+  if(y % 3 === 1) return 0;
   else  return 0;
 }
   
@@ -1176,32 +1713,40 @@ function getCurrentChunks() {
 }
 
 function generateTraffic() {
-  // Remove the player spawn code from here
   setInterval(() => {
     if (traffic.length < 20) {
-      const spawnPoints = [];
+      const roadTiles = [];
+      
+      // Find valid road tiles
       for (let y = 0; y < map.length; y++) {
         for (let x = 0; x < map[y].length; x++) {
-          const tile = map[y][x];
-          const isRoad = tile.biome === 'city' ? 
-            isCityRoad(x, y) : 
-            tile.biome === 'suburbs' ? 
-            isSuburbRoad(x, y) : 
-            false;
-          
-          if (isRoad) {
-            spawnPoints.push({
+          if (map[y][x].hasRoad) {
+            roadTiles.push({
               x: x * tileSize + tileSize/2,
-              y: y * tileSize + tileSize/2
+              y: y * tileSize + tileSize/2,
+              rotation: getRoadRotation(x, y).rotation
             });
           }
         }
       }
-      
-      if (spawnPoints.length > 0) {
-        const {x, y} = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+
+      if (roadTiles.length > 0) {
+        const spawnPoint = roadTiles[Math.floor(Math.random() * roadTiles.length)];
         const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'];
-        traffic.push(new Car(x, y, 'traffic', colors[Math.floor(Math.random() * colors.length)]));
+        
+        const newCar = new Car(
+          spawnPoint.x,
+          spawnPoint.y,
+          'traffic',
+          colors[Math.floor(Math.random() * colors.length)]
+        );
+        
+        // Align with road direction
+        newCar.angle = spawnPoint.rotation;
+        newCar.isTraffic = true;
+        newCar.laneOffset = (Math.random() - 0.5) * newCar.track;
+        
+        traffic.push(newCar);
       }
     }
   }, 3000);
@@ -1347,19 +1892,6 @@ function sendPlayerMessage() {
   conversationManager.sendMessage(input);
 }
 
-function generateSidewalkNodes(tile) {
-  const nodes = [];
-  // Generate nodes along road edges
-  if(tile.isCityRoad || tile.isSuburbRoad) {
-    for(let i = 0; i < tileSize; i += 50) {
-      nodes.push({ x: tile.x + i, y: tile.y });
-      nodes.push({ x: tile.x + i, y: tile.y + tileSize });
-      nodes.push({ x: tile.x, y: tile.y + i });
-      nodes.push({ x: tile.x + tileSize, y: tile.y + i });
-    }
-  }
-  return nodes;
-}
 // Road logic
 function isCityRoad(x, y) {
   const cycle = 6;
@@ -1375,10 +1907,41 @@ function isSuburbRoad(x, y) {
 }
   
 function isRoadTile(x, y) {
-  if (x < 0 || y < 0 || x >= map[0].length || y >= map.length) return false;
-  const tile = map[y][x];
+  // Check if map data exists
+  if (!map || map.length === 0 || !map[0]) return false;
+
+  // Validate coordinates are integers
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
+
+  // Check array bounds
+  if (y < 0 || y >= map.length) return false;
+  if (x < 0 || x >= map[0].length) return false;
+
+  // Check if row exists
+  const row = map[y];
+  if (!row) return false;
+
+  // Check if tile exists
+  const tile = row[x];
+  if (!tile) return false;
+
   return (tile.biome === 'city' && isCityRoad(x, y)) || 
          (tile.biome === 'suburbs' && isSuburbRoad(x, y));
+}
+
+function isRoadTileNoMap(x, y) {
+  //if (x < 0 || y < 0 || x >= map[0].length || y >= map.length) return false;
+  const noiseValue1 = simplex.noise2D(x * noiseScale, y * noiseScale);
+  const noiseValue2 = simplex.noise2D(x * noiseScale2, y * noiseScale2) * 0.5;
+  const combinedNoise = noiseValue1 + noiseValue2;
+
+  let biome = 'grassland';
+  if (combinedNoise < -0.5) biome = 'water';
+  else if (combinedNoise < -0.1) biome = 'suburbs';
+  else if (combinedNoise > 0.9) biome = 'city';
+  else if (combinedNoise > 0.4) biome = 'suburbs';
+  return (biome === 'city' && isCityRoad(x, y)) || 
+         (biome === 'suburbs' && isSuburbRoad(x, y));
 }
 
 function getRoadRotation(x, y) {
@@ -1416,7 +1979,40 @@ function getRoadRotation(x, y) {
 }
 
 
-// Draw the map
+function getRoadRotationNoMap(x, y) {
+  const neighbors = {
+    left: isRoadTileNoMap(x - 1, y),
+    right: isRoadTileNoMap(x + 1, y),
+    up: isRoadTileNoMap(x, y - 1),
+    down: isRoadTileNoMap(x, y + 1)
+  };
+  const count = Object.values(neighbors).filter(v => v).length;
+
+  // Determine road type and rotation
+  if (count === 4) return { type: 'x', rotation: 0 };
+  if (count === 3) { // T-intersection
+    if (!neighbors.up) return { type: 't', rotation: 0 };
+    if (!neighbors.down) return { type: 't', rotation: Math.PI };
+    if (!neighbors.left) return { type: 't', rotation: -Math.PI/2 };
+    return { type: 't', rotation: Math.PI/2 };
+  }
+  if (count === 2) {
+    if (neighbors.left && neighbors.right) return { type: 'straight', rotation: 0 };
+    if (neighbors.up && neighbors.down) return { type: 'straight', rotation: Math.PI/2 };
+    if (neighbors.right && neighbors.down) return { type: 'turn', rotation: 0 };
+    if (neighbors.down && neighbors.left) return { type: 'turn', rotation: Math.PI/2 };
+    if (neighbors.left && neighbors.up) return { type: 'turn', rotation: Math.PI };
+    if (neighbors.up && neighbors.right) return { type: 'turn', rotation: -Math.PI/2 };
+  }
+  if (count === 1) { // Dead end
+    if (neighbors.left) return { type: 'dead_end', rotation: Math.PI };
+    if (neighbors.right) return { type: 'dead_end', rotation: 0 };
+    if (neighbors.up) return { type: 'dead_end', rotation: -Math.PI/2 };
+    return { type: 'dead_end', rotation: Math.PI/2 };
+  }
+  return { type: 'straight', rotation: Math.PI / 2 }; // Default
+}
+
 function drawMap() {
   const viewWidth = Math.ceil(canvas.width / tileSize);
   const viewHeight = Math.ceil(canvas.height / tileSize);
@@ -1433,45 +2029,68 @@ function drawMap() {
       const mapX = startTileX + x;
       const mapY = startTileY + y;
 
-      if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
+      if (mapX >= 0 && mapX < map[0].length && mapY >= 0 && mapY < map.length) {
         const tile = map[mapY][mapX];
-        const texture = textures.grassland
-
-
+        let texture = textures.grassland;
         
-        // Only draw base texture here
-        ctx.drawImage(
-          texture,
-          x * tileSize - tileOffsetX,
-          y * tileSize - tileOffsetY,
-          tileSize,
-          tileSize
-        );
+        if (tile.biome === 'water') texture = textures.water;
+        else if (tile.biome === 'city') texture = textures.cityback;
+        else if (tile.biome === 'suburbs') texture = textures.suburbs;
+        ctx.save();
+        ctx.translate(0,0);
+        ctx.rotate(determineHouseRotation(x,y));
+        ctx.drawImage(texture, x * tileSize - tileOffsetX, y * tileSize - tileOffsetY, tileSize, tileSize);
+        ctx.restore();
       }
     }
   }
 
-  // Second pass: Draw roads and houses
-  for (let y = 0; y <= viewHeight; y++) {
-    for (let x = 0; x <= viewWidth; x++) {
+  // Second pass: Draw structures and roads
+  for (let y = -2; y <= viewHeight; y++) {
+    for (let x = -2; x <= viewWidth; x++) {
       const mapX = startTileX + x;
       const mapY = startTileY + y;
 
-      if (mapX >= 0 && mapX < mapWidth / tileSize && mapY >= 0 && mapY < mapHeight / tileSize) {
+      if (mapX >= 0 && mapX < map[0].length && mapY >= 0 && mapY < map.length) {
         const tile = map[mapY][mapX];
-        const worldTileX = mapX;
-        const worldTileY = mapY;
+        const posX = x * tileSize - tileOffsetX;
+        const posY = y * tileSize - tileOffsetY;
 
         // Draw roads
-        const isCityR = tile.biome === 'city' && isCityRoad(mapX, mapY);
-        const isSuburbR = tile.biome === 'suburbs' && isSuburbRoad(mapX, mapY);
-      
 
-        if (isCityR || isSuburbR) {
-          const posX = x * tileSize - tileOffsetX;
-          const posY = y * tileSize - tileOffsetY;
+        // Draw structures
+
+        if(tile.isStructureOrigin){
+          switch(tile.type) {
+            case 'house':
+              ctx.save();
+              ctx.translate(posX,posY);
+              ctx.rotate(determineHouseRotation(x,y));
+              ctx.drawImage(textures.house, posX, posY,tileSize,tileSize);
+              ctx.restore();
+              break;
+            case 'school':
+              drawRotatedStructure(posX, posY, textures.school, 2, 2);
+              break;
+            case 'park':
+              ctx.drawImage(textures.park, posX, posY, tileSize, tileSize);
+              ctx.restore();
+
+              break;
+            case 'building3x3':
+              drawRotatedStructure(posX, posY, textures.building3x3, 3, 3);
+              break;
+            case 'building2x2':
+              drawRotatedStructure(posX, posY, textures.building2x2, 2, 2);
+              break;
+            case 'building2x1':
+              drawRotatedStructure(posX, posY, textures.building2x1, 2, 1);
+              break;
+          }
+        }
+                // Draw roads
+        if (isCityRoad(mapX, mapY) && tile.biome === 'city'|| isSuburbRoad(mapX, mapY)  && tile.biome === 'suburbs') {
           const roadInfo = getRoadRotation(mapX, mapY);
-
           ctx.save();
           ctx.translate(posX + tileSize/2, posY + tileSize/2);
           ctx.rotate(roadInfo.rotation);
@@ -1484,50 +2103,39 @@ function drawMap() {
           );
           ctx.restore();
         }
-
-        // Draw houses
-        if (tile.hasHouse || (!(isCityR || isSuburbR) && tile.biome === 'suburbs')) {
-          ctx.save();
-          const posX = x * tileSize - tileOffsetX;
-          const posY = y * tileSize - tileOffsetY;
-          
-          // Determine house rotation based on nearest road
-          const rotation = determineHouseRotation(mapX, mapY);
-          ctx.translate(posX + tileSize/2, posY + tileSize/2);
-          ctx.rotate(rotation);
-          ctx.drawImage(
-            textures.house,
-            -tileSize/2,
-            -tileSize/2,
-            tileSize,
-            tileSize
-          );
-          ctx.restore();
-        }
-        if( tile.biome === 'water'){
-          ctx.save();
-          const posX = x * tileSize - tileOffsetX;
-          const posY = y * tileSize - tileOffsetY;
-          
-          // Determine house rotation based on nearest road
-          ctx.translate(posX + tileSize/2, posY + tileSize/2);
-          ctx.drawImage(
-            textures.water,
-            -tileSize/2,
-            -tileSize/2,
-            tileSize,
-            tileSize
-          );
-          ctx.restore();
-        }
       }
     }
   }
 }
 
-// Game loop
-function gameLoop() {
+function drawRotatedStructure(x, y, texture, width, height) {
+  ctx.save();
+  ctx.translate(x + (width * tileSize)/2, y + (height * tileSize)/2);
+  //ctx.rotate(tile.rotation);
+  ctx.drawImage(
+    texture,
+    -(width * tileSize)/2,
+    -(height * tileSize)/2,
+    width * tileSize,
+    height * tileSize
+  );
+  ctx.restore();
+}
 
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// Game loop
+function gameLoop(timestamp) {
+  // Limit frame rate
+  const delta = timestamp - lastFrame;
+  if (delta < 1000/FPS) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+  lastFrame = timestamp;
+  
   // Keep player within bounds
     // Player/Car movement
    if (player.currentVehicle) {
@@ -1547,16 +2155,7 @@ function gameLoop() {
       Math.abs(car.x - player.x) < enterRange &&
       Math.abs(car.y - player.y) < enterRange
     );
-    
-    //if (keys.KeyF && nearbyCar) {
-    //  nearbyCar.enter(player);
-    //}
   }
-
-  // Exit vehicle
-  //if (keys.KeyE && player.currentVehicle) {
-  //  player.currentVehicle.exit();
-  //}
 
   // Keep within bounds
   player.x = Math.max(0, Math.min(mapWidth - tileSize, player.x));
@@ -1567,7 +2166,6 @@ function gameLoop() {
   //checkCurrentCity();
 
   // Update entities
-  traffic.forEach(car => car.update());
   cars.forEach(car => car.update());
 
   // Draw everything
@@ -1577,12 +2175,19 @@ function gameLoop() {
   // Draw cars
   traffic.forEach(car => car.draw(ctx, player.x, player.y));
   cars.forEach(car => car.draw(ctx, player.x, player.y));
+  // Throttle NPC updates
   npcs.forEach(npc => {
-    if(!npc.isInConversation) npc.update();
-    if(Date.now() - npc.lastAIUpdate > NPC_UPDATE_INTERVAL) npc.updateBehavior();
+  npc.update();
   });
   
-
+  if (timestamp - lastTrafficUpdate > TRAFFIC_UPDATE_INTERVAL) {
+    traffic.forEach(car => {
+      if (distance(car, player) < 2000) { // Only update nearby cars
+        car.update();
+      }
+    });
+    lastTrafficUpdate = timestamp;
+  }
   // Draw NPCs
   npcs.forEach(npc => npc.draw(ctx, player.x, player.y));
   mapSystem.draw();
@@ -1604,6 +2209,7 @@ function gameLoop() {
 // Start the game loop after textures load
 player.visible = true;
 player.currentVehicle = null;
+const roadNetwork = new RoadNetwork();
 const map = generateMap();
 const chatSystem = new ChatSystem();
 const mapSystem = new MapSystem();
